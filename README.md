@@ -11,9 +11,15 @@ Pour charger un modèle : écrire assets/models/[nom du modèle].obj
 #Controles 
 
 ZQSD : mouvement de caméra 
+
 Shift et espace : descendre et monter. 
+
 M : prendre un screenshot
+
 P : changer la position du soleil dans la skyBox (si elle est chargée) 
+
 * : lancer le rendu (la caméra ne peut plus bouger)
+
 / : stopper le rendu
+
 crtl + G : charger un nouveau modèle 
