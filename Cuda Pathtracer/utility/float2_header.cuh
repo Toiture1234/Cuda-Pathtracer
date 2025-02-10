@@ -62,4 +62,4 @@ namespace pathtracer {
 	__device__ inline float dot(const float2& u, const float2& v) {
 		return u.x * v.x + u.y * v.y;
 	}
-}
+}  
