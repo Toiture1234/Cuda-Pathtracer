@@ -1,9 +1,6 @@
 #pragma once
 
 namespace pathtracer {
-
-	
-
 	// https://gelamisalami.github.io/blog/posts/ray-box-intersection/
 	__device__ inline bool boxIntersect(Hit& hit, Ray ray, float3 min, float3 max, Material mat) {
 		float3 planesMin = -1.0 * (ray.o - min) / ray.d;

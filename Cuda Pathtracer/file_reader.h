@@ -152,6 +152,7 @@ namespace pathtracer {
 		std::vector<int3> faceVec;
 		std::vector<float3> normals;
 		std::vector<int3> normalPtr;
+		std::vector<float2> texCoordPtr; 
 		std::vector<int> matIndexes;
 
 		int matNb = 0;
@@ -162,10 +163,11 @@ namespace pathtracer {
 			int currentIndex = 0;
 			while (getline(objFile, line)) {
 				int len = strlen(line.c_str());
+				
 				int tokenEnd = 0;
 
 				// to rework
-				/*if (readUntil(line, 0, ' ', &tokenEnd) == "f") {
+				if (readUntil(line, 0, ' ', &tokenEnd) == "f") {
 					int3 ptsLink = make_int3(0, 0, 0);
 					int3 vtLink = make_int3(0, 0, 0);
 					int3 nLink = make_int3(0, 0, 0);
@@ -173,45 +175,84 @@ namespace pathtracer {
 					if (anyNormals) {
 						std::string read = readUntil(line, tokenEnd + 1, '/', &tokenEnd);
 						if (!read.empty())
-							ptsLink.x = stoi(read);
+							ptsLink.x = stoi(read) - 1;
 
 						read = readUntil(line, tokenEnd + 1, '/', &tokenEnd);
 						if(!read.empty())
-							vtLink.x = stoi(read);
+							vtLink.x = stoi(read) - 1;
 
 						read = readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
 						if (!read.empty())
-							nLink.x = stoi(read);
+							nLink.x = stoi(read) - 1;
 
 						read = readUntil(line, tokenEnd + 1, '/', &tokenEnd);
 						if (!read.empty())
-							ptsLink.y = stoi(read);
+							ptsLink.y = stoi(read) - 1;
 
 						read = readUntil(line, tokenEnd + 1, '/', &tokenEnd);
 						if (!read.empty())
-							vtLink.y = stoi(read);
+							vtLink.y = stoi(read) - 1;
 
 						read = readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
 						if (!read.empty())
-							nLink.y = stoi(read);
+							nLink.y = stoi(read) - 1;
 
 						read = readUntil(line, tokenEnd + 1, '/', &tokenEnd);
 						if (!read.empty())
-							ptsLink.z = stoi(read);
+							ptsLink.z = stoi(read) - 1;
 
 						read = readUntil(line, tokenEnd + 1, '/', &tokenEnd);
 						if (!read.empty())
-							vtLink.z = stoi(read);
+							vtLink.z = stoi(read) - 1;
 
 						read = readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
 						if (!read.empty())
-							nLink.z = stoi(read);
+							nLink.z = stoi(read) - 1;
+					}
+					else if (anyTextures) {
+						std::string read = readUntil(line, tokenEnd + 1, '/', &tokenEnd);
+						if (!read.empty())
+							ptsLink.x = stoi(read) - 1;
+
+						read = readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
+						if (!read.empty())
+							vtLink.x = stoi(read) - 1;
+
+						read = readUntil(line, tokenEnd + 1, '/', &tokenEnd);
+						if (!read.empty())
+							ptsLink.y = stoi(read) - 1;
+
+						read = readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
+						if (!read.empty())
+							vtLink.y = stoi(read) - 1;
+
+						read = readUntil(line, tokenEnd + 1, '/', &tokenEnd);
+						if (!read.empty())
+							ptsLink.z = stoi(read) - 1;
+
+						read = readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
+						if (!read.empty())
+							vtLink.z = stoi(read) - 1;
+					}
+					else {
+						std::string read = readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
+						if (!read.empty())
+							ptsLink.x = stoi(read) - 1;
+
+						read = readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
+						if (!read.empty())
+							ptsLink.y = stoi(read) - 1;
+
+						read = readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
+						if (!read.empty())
+							ptsLink.z = stoi(read) - 1;
 					}
 					faceVec.push_back(ptsLink);
 					normalPtr.push_back(nLink);
 					matIndexes.push_back(currentIndex);
 					triangleCount++;
-				}*/
+				}
+				/*
 				if (line[0] == 'f') {
 					int x = 0, y = 0, z = 0;
 					int vx = 0, vy = 0, vz = 0;
@@ -279,7 +320,7 @@ namespace pathtracer {
 					faceVec.push_back(make_int3(x - 1, y - 1, z - 1));
 					normalPtr.push_back(make_int3(vx - 1, vy - 1, vz - 1));
 					matIndexes.push_back(currentIndex);
-				}
+				}*/
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "v") {
 					float3 point = make_float3(0.f, 0.f, 0.f);
 					point.x = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
