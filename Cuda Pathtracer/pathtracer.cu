@@ -372,7 +372,8 @@ namespace pathtracer {
 		if (params.frameIndex == 0 || !params.isRendering)
 			accumBuff[idx] = color0;
 		else
-			accumBuff[idx] += color0;
+			if (!isnan(color0.x) && !isnan(color0.y) && !isnan(color0.z))
+				accumBuff[idx] += color0;
 
 		float3 color = accumBuff[idx] / (params.isRendering ? params.frameIndex + 1 : 1.);
 		aces(color);

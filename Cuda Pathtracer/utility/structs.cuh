@@ -121,9 +121,11 @@ namespace pathtracer {
 	struct Triangle {
 		float3 a, b, c, origin;
 		float3 nA, nB, nC;
+		float2 tA, tB, tC;
 		int matIndex;
 		__device__ __host__ inline Triangle() {
-			a = b = c = nA = nB = nC = make_float3(0.f, 0.f, 0.f);
+			a = b = c = nA = nB = nC = origin = make_float3(0.f, 0.f, 0.f);
+			tA = tB = tC = make_float2(0.f, 0.f);
 			matIndex = 0;
 		}
 		__device__ __host__ inline Triangle(float3 A, float3 B, float3 C) {
@@ -135,7 +137,10 @@ namespace pathtracer {
 	struct BVH_Node {
 		float3 aabbMin, aabbMax;
 		int leftFirst, triCount;
-		__device__ __host__ BVH_Node() {}
+		__device__ __host__ BVH_Node() {
+			aabbMin = aabbMax = make_float3(0.f, 0.f, 0.f);
+			leftFirst = triCount = 0;
+		}
 	};
 	struct aabb {
 		float3 bMin = make_float3(1e30, 1e30, 1e30), bMax = make_float3(-1e30, -1e30, -1e30);

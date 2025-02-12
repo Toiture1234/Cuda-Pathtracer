@@ -147,12 +147,13 @@ namespace pathtracer {
 		std::vector<int3> faceVec;
 		std::vector<float3> normals;
 		std::vector<int3> normalPtr;
-		std::vector<float2> texCoordPtr; 
+		std::vector<float2> texCoord;
+		std::vector<int3> texCoordPtr; 
 		std::vector<int> matIndexes;
 
 		int matNb = 0;
-		bool anyNormals = true;
-		bool anyTextures = false;
+		bool anyNormals = false;
+		bool anyTextures = false; // textures are loaded if normals are
 
 		if (objFile.is_open()) {
 			int currentIndex = 0;
@@ -244,6 +245,7 @@ namespace pathtracer {
 					}
 					faceVec.push_back(ptsLink);
 					normalPtr.push_back(nLink);
+					texCoordPtr.push_back(vtLink);
 					matIndexes.push_back(currentIndex);
 					triangleCount++;
 				}
@@ -262,6 +264,15 @@ namespace pathtracer {
 					norm.z = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
 
 					normals.push_back(norm);
+					anyNormals = true;
+				}
+				else if (readUntil(line, 0, ' ', &tokenEnd) == "vt") {
+					float2 coords = make_float2(0.f, 0.f);
+					coords.x = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
+					coords.y = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
+
+					texCoord.push_back(coords);
+					anyTextures = true;
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "usemtl") {
 					std::string thisName = readUntil(line, 7, '\n', &tokenEnd);
