@@ -83,9 +83,9 @@ namespace pathtracer {
             return make_float3(sinTheta * cosPhi, sinTheta * sinPhi, cosTheta);
         }
 
-        __device__ inline float3 SampleGGXVNDF(float3 V, float rgh, float r1, float r2)
+        __device__ inline float3 SampleGGXVNDF(float3 V, float ax, float ay, float r1, float r2)
         {
-            float3 Vh = normalize(make_float3(rgh * V.x, rgh * V.y, V.z));
+            float3 Vh = normalize(make_float3(ax * V.x, ay * V.y, V.z));
 
             float lensq = Vh.x * Vh.x + Vh.y * Vh.y;
             float3 T1 = lensq > 0.0 ? make_float3(-Vh.y, Vh.x, 0.0) * rsqrtf(lensq) : make_float3(1, 0, 0);
@@ -100,7 +100,7 @@ namespace pathtracer {
 
             float3 Nh = t1 * T1 + t2 * T2 + sqrtf(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * Vh;
 
-            return normalize(make_float3(rgh * Nh.x, rgh * Nh.y, fmaxf(0.0, Nh.z)));
+            return normalize(make_float3(ax * Nh.x, ay * Nh.y, fmaxf(0.0, Nh.z)));
         }
         __device__ inline float SmithG(float NDotV, float alphaG)
         {
@@ -233,11 +233,9 @@ namespace pathtracer {
         }
         __device__ inline void GetSpecColor(Material mat, float eta, float3& specCol, float3& sheenCol)
         {
-            float lum = Luminance(mat.baseColor);
-            float3 ctint = lum > 0.0f ? mat.baseColor / lum : make_float3(1.0f, 1.0f, 1.0f);
             float F0 = (1.0 - eta) / (1.0f + eta);
-            specCol = mix(F0 * F0 * /*mix(make_float3(1.0f, 1.0f, 1.0f), ctint, mat.specularTint)*/ make_float3(1.0f, 1.0f, 1.0f), mat.baseColor, mat.metallic);
-            sheenCol = mix(make_float3(1.0f, 1.0f, 1.0f), ctint, mat.sheenTint);
+            specCol = mix(F0 * F0 * make_float3(1.0f, 1.0f, 1.0f), mat.baseColor, mat.metallic);
+            sheenCol = make_float3(1.f,1.f,1.f);
         }
 
         __device__ inline void GetLobeProbabilities(Material mat, float eta, float3 specCol, float approxFresnel, float& diffuseWt, float& specReflectWt, float& specRefractWt, float& clearcoatWt)
@@ -259,6 +257,11 @@ namespace pathtracer {
             pdf = 0.0;
             float3 f = make_float3(0.0f, 0.0f, 0.0f);
 
+            // anisotropy
+            float aspect = rsqrtf(1.f - 0.9f * info.mat.anisotropic);
+            float ax = info.mat.roughness * info.mat.roughness * aspect;
+            float ay = info.mat.roughness * info.mat.roughness / aspect;
+
             float r1 = randC(&state);
             float r2 = randC(&state);
 
@@ -272,8 +275,6 @@ namespace pathtracer {
 
             // Lobe weights
             float diffuseWt, specReflectWt, specRefractWt, clearcoatWt;
-            // TODO: Recheck fresnel. Not sure if correct. VDotN produces fireflies with rough dielectric.
-            // VDotH matches Mitsuba and gets rid of all fireflies but H isn't available at this stage
             float approxFresnel = FresnelMix(info.mat, !info.isInside ? 1. / info.mat.ior : info.mat.ior, V.z);
             GetLobeProbabilities(info.mat, !info.isInside ? 1. / info.mat.ior : info.mat.ior, specCol, approxFresnel, diffuseWt, specReflectWt, specRefractWt, clearcoatWt);
 
@@ -284,37 +285,30 @@ namespace pathtracer {
             cdf[2] = cdf[1] + specRefractWt;
             cdf[3] = cdf[2] + clearcoatWt;
 
-            if (r1 < cdf[0]) // Diffuse Reflection Lobe
+            float r3 = randC(&state);
+
+            if (r3 < cdf[0]) // Diffuse Reflection Lobe
             {
-                r1 /= cdf[0];
                 L = CosineSampleHemisphere(r1, r2);
 
                 float3 H = normalize(L + V);
 
                 f = EvalDiffuse(info.mat, sheenCol, V, L, H, pdf);
                 pdf *= diffuseWt;
-
-                //rayO += N * 5.;
             }
-            else if (r1 < cdf[1]) // Specular Reflection Lobe
+            else if (r3 < cdf[1]) // Specular Reflection Lobe
             {
-                r1 = (r1 - cdf[0]) / (cdf[1] - cdf[0]);
-                float3 H = SampleGGXVNDF(V, info.mat.roughness, r1, r2);
-
+                float3 H = SampleGGXVNDF(V, ax, ay, r1, r2);
                 H *= sign(H.z);
 
                 L = normalize(reflect(V * -1.0f, H));
 
                 f = EvalSpecReflection(info.mat, !info.isInside ? 1. / info.mat.ior : info.mat.ior, specCol, V, L, H, pdf);
                 pdf *= specReflectWt;
-
-                //rayO += N * 5.;
             }
-            else if (r1 < cdf[2]) // Specular Refraction Lobe
+            else if (r3 < cdf[2]) // Specular Refraction Lobe
             {
-                r1 = (r1 - cdf[1]) / (cdf[2] - cdf[1]);
-                float3 H = SampleGGXVNDF(V, info.mat.roughness, r1, r2);
-
+                float3 H = SampleGGXVNDF(V, ax, ay, r1, r2);
                 H *= sign(H.z);
 
                 L = normalize(refract(V * -1.0f, H, !info.isInside ? 1. / info.mat.ior : info.mat.ior));
@@ -322,22 +316,17 @@ namespace pathtracer {
                 f = EvalSpecRefraction(info.mat, !info.isInside ? 1. / info.mat.ior : info.mat.ior, V, L, H, pdf);
                 pdf = specRefractWt;
 
-                //rayO -= N * 5.;
                 info.isInside = !info.isInside;
             }
             else // Clearcoat Lobe
             {
-                r1 = (r1 - cdf[2]) / (1.0 - cdf[2]);
                 float3 H = SampleGTR1(info.mat.clearcoatRoughness, r1, r2);
-
                 H *= sign(H.z);
 
                 L = normalize(reflect(V * -1.0f, H));
 
                 f = EvalClearcoat(info.mat, V, L, H, pdf);
                 pdf *= clearcoatWt;
-
-                //rayO += N * 5.;
             }
 
             L = ToWorld(T, B, N, L);

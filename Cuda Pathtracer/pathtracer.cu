@@ -81,6 +81,12 @@ namespace pathtracer {
 		if (error != cudaSuccess) printf("CAN'T FREE ACCUM_BUFFER_DEV IN pathtracer.cu : %s", cudaGetErrorString(error));
 		error = cudaFree(display_buffer_dev);
 		if (error != cudaSuccess) printf("CAN'T FREE DISPLAY_BUFFER_DEV IN pathtracer.cu : %s", cudaGetErrorString(error));
+
+		cudaFree(cudaTriangleList);
+		cudaFree(cudaBVHNodes);
+		cudaFree(cudaTrianglesIndex);
+		cudaFree(cudaMaterialList);
+
 		printf("Everything has been free !\n");
 	}
 	// device code
@@ -140,25 +146,25 @@ namespace pathtracer {
 
 		/*Material sphMat;
 		sphMat.metallic = 0.;
-		sphMat.baseColor = make_float3(1., 1., 1.);
-		sphMat.specTrans = 1.;
-		sphMat.extinction = make_float3(0., 0.1, 0.1);
+		sphMat.baseColor = make_float3(1., 0.4, 0.6);
+		sphMat.roughness = 0.4;
+		sphMat.anisotropic = 0.;
 		sphereIntersect(hit, ray, make_float4(-400., 50., 0., 50.), sphMat);
-		sphMat.extinction = make_float3(0., 0.1, 0.1) * 2.;
+		sphMat.anisotropic = 0.2;
 		sphereIntersect(hit, ray, make_float4(-250., 50., 0., 50.), sphMat);
-		sphMat.extinction = make_float3(0., 0.1, 0.1) * 3.;
+		sphMat.anisotropic = 0.4;
 		sphereIntersect(hit, ray, make_float4(-100., 50., 0., 50.), sphMat);
-		sphMat.extinction = make_float3(0., 0.1, 0.1) * 4.;
+		sphMat.anisotropic = 0.6;
 		sphereIntersect(hit, ray, make_float4(50., 50., 0., 50.), sphMat);
-		sphMat.extinction = make_float3(0., 0.1, 0.1) * 5.;
+		sphMat.anisotropic = 0.8;
 		sphereIntersect(hit, ray, make_float4(200., 50., 0., 50.), sphMat);
-		sphMat.extinction = make_float3(0., 0.1, 0.1) * 6.;
+		sphMat.anisotropic = 0.99;
 		sphereIntersect(hit, ray, make_float4(350., 50., 0., 50.), sphMat);
-		*/
-		//Material boxMat;
-		//boxMat.emissive = make_float3(10.f, 10.f, 10.f);
-		//boxMat.baseColor = make_float3(1.f, 1.f, 1.f);
-		//boxIntersect(hit, ray, make_float3(-100.0f, 270.0f, -100.0f), make_float3(100.0f, 290.f, 100.0f), boxMat);
+		
+		Material boxMat;
+		boxMat.emissive = make_float3(10.f, 10.f, 10.f);
+		boxMat.baseColor = make_float3(1.f, 1.f, 1.f);
+		boxIntersect(hit, ray, make_float3(-100.0f, 270.0f, -100.0f), make_float3(100.0f, 290.f, 100.0f), boxMat);*/
 		
 		return hit;
 	}

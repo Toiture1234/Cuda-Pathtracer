@@ -81,9 +81,7 @@ namespace pathtracer {
 		float anisotropic;
 		float metallic;
 		float subsurface;
-		float specularTint;
 		float sheen;
-		float sheenTint;
 		float clearcoat;
 		float clearcoatRoughness;
 		float specTrans;
@@ -98,9 +96,7 @@ namespace pathtracer {
 			anisotropic = 0.f;
 			metallic = 0.f;
 			subsurface = 0.f;
-			specularTint = 0.f;
 			sheen = 0.f;
-			sheenTint = 0.f;
 			clearcoat = 0.f;
 			clearcoatRoughness = 0.f;
 			specTrans = 0.f;
@@ -126,7 +122,10 @@ namespace pathtracer {
 		float3 a, b, c, origin;
 		float3 nA, nB, nC;
 		int matIndex;
-		__device__ __host__ inline Triangle() {}
+		__device__ __host__ inline Triangle() {
+			a = b = c = nA = nB = nC = make_float3(0.f, 0.f, 0.f);
+			matIndex = 0;
+		}
 		__device__ __host__ inline Triangle(float3 A, float3 B, float3 C) {
 			a = A; b = B; c = C;
 		}

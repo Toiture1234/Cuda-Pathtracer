@@ -79,7 +79,7 @@ void saveToFile(sf::Texture* texture) {
     time_t timestamp;
     time(&timestamp);
 
-   char fileName0[26];
+    char fileName0[26];
     ctime_s(fileName0, sizeof(fileName0), &timestamp);
     std::string fileName1;
     for (int i = 4; i < strlen(fileName0); i++) {
@@ -108,7 +108,10 @@ void initScene(pathtracer::kernelParams &params) {
     const char* inputCst = path;
 
     // model and bvh relative
-    if (!pathtracer::readObjFile(inputCst, numOfTriangles, numOfMaterials)) exit(1);
+    if (!pathtracer::readObjFile(inputCst, numOfTriangles, numOfMaterials)) {
+        std::cout << "Failed to load model, please relaunch.\n";
+        exit(1);
+    }
     std::cout << "Please wait during BVH construction\n";
     sf::Clock bvhDebugClock;
     bvhDebugClock.restart();
@@ -170,7 +173,6 @@ int main()
     debugText.setCharacterSize(20);
     debugText.setFillColor(sf::Color::Red);
 
-    //pathtracer::initCuda(NULL);
     while (window.isOpen())
     {
         sf::Event event;
@@ -217,4 +219,8 @@ int main()
     }
     pathtracer::endCuda();
     
-}
+    delete[] pathtracer::allTriangles;
+    delete[] pathtracer::TriangleIdx;
+    delete[] pathtracer::materialList;
+    delete[] pathtracer::bvhNode;
+} 

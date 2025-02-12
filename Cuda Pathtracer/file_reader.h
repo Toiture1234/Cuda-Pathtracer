@@ -51,22 +51,13 @@ namespace pathtracer {
 					std::cout << "New material named " << materialName << "\n";
 					current.name = materialName;
  				}
-				else if (readUntil(line, 0, ' ', &tokenEnd) == "Ks") {
-					float3 values = make_float3(0.f, 0.f, 0.f);
-
-					values.x = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
-					values.y = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
-					values.z = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
-					std::cout << "Ks of " << current.name << " : " << values.x << " " << values.y << " " << values.z << "\n";
-					//current.matProperties.specularAlbedo = values;
-				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "Kd") {
 					float3 values = make_float3(0.f, 0.f, 0.f);
 
 					values.x = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
 					values.y = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
 					values.z = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
-					std::cout << "Kd of " << current.name << " : " << values.x << " " << values.y << " " << values.z << "\n";
+					//std::cout << "Kd of " << current.name << " : " << values.x << " " << values.y << " " << values.z << "\n";
 					current.matProperties.baseColor = values;
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "Ke") {
@@ -75,34 +66,39 @@ namespace pathtracer {
 					values.x = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
 					values.y = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
 					values.z = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
-					std::cout << "Ke of " << current.name << " : " << values.x << " " << values.y << " " << values.z << "\n";
+					//std::cout << "Ke of " << current.name << " : " << values.x << " " << values.y << " " << values.z << "\n";
 					current.matProperties.emissive = values;
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "d") {
 					float value = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
-					std::cout << "d of " << current.name << " : " << value << "\n";
+					//std::cout << "d of " << current.name << " : " << value << "\n";
 					current.matProperties.specTrans = 1. - value;
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "Ni") {
 					float value = 1.0f;
 					value = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
-					std::cout << "IOR of " << current.name << " : " << value << "\n";
+					//std::cout << "IOR of " << current.name << " : " << value << "\n";
 					current.matProperties.ior = value;
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "Pr") {
 					float value = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
-					std::cout << "Pr of " << current.name << " : " << value << "\n";
+					//std::cout << "Pr of " << current.name << " : " << value << "\n";
 					current.matProperties.roughness = value;
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "Pm") {
 					float value = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
-					std::cout << "Pm of " << current.name << " : " << value << "\n";
+					//std::cout << "Pm of " << current.name << " : " << value << "\n";
 					current.matProperties.metallic = value;
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "Ps") {
 					float value = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
-					std::cout << "Ps of " << current.name << " : " << value << "\n";
+					//std::cout << "Ps of " << current.name << " : " << value << "\n";
 					current.matProperties.sheen = value;
+				}
+				else if (readUntil(line, 0, ' ', &tokenEnd) == "aniso") {
+					float value = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
+					//std::cout << "aniso of " << current.name << " : " << value << "\n";
+					current.matProperties.anisotropic = value;
 				}
 			}
 			matList.push_back(current);
@@ -134,7 +130,6 @@ namespace pathtracer {
 
 	inline int getMatIndex(int matNb, std::string thisName) {
 		for (int i = 0; i < matNb; i++) {
-			//std::cout << rMatList[i].name << " / " << thisName << "\n";
 			if (rMatList[i].name == thisName) return i;
 		}
 		return 0;
@@ -252,75 +247,6 @@ namespace pathtracer {
 					matIndexes.push_back(currentIndex);
 					triangleCount++;
 				}
-				/*
-				if (line[0] == 'f') {
-					int x = 0, y = 0, z = 0;
-					int vx = 0, vy = 0, vz = 0;
-					int tx = 0, ty = 0, tz = 0; // use later (maybe)
-
-					int stage = 0;
-					std::string buffer;
-					triangleCount++;
-
-					for (int i = 2; i < len + 1; i++) {
-						char c = line[i];
-						if (c == ' ' || c == '\0' || c == '/') {
-							switch (stage) {
-							case 0:
-								if (buffer.size() != 0)
-									x = stoi(buffer);
-								stage++;
-								break;
-							case 1:
-								if (buffer.size() != 0)
-									tx = stoi(buffer);
-								stage++;
-								break;
-							case 2:
-								if (buffer.size() != 0)
-									vx = stoi(buffer);
-								stage++;
-								break;
-							case 3:
-								if (buffer.size() != 0)
-									y = stoi(buffer);
-								stage++;
-								break;
-							case 4:
-								if (buffer.size() != 0)
-									ty = stoi(buffer);
-								stage++;
-								break;
-							case 5:
-								if (buffer.size() != 0)
-									vy = stoi(buffer);
-								stage++;
-								break;
-							case 6:
-								if (buffer.size() != 0)
-									z = stoi(buffer);
-								stage++;
-								break;
-							case 7:
-								if (buffer.size() != 0)
-									tz = stoi(buffer);
-								stage++;
-								break;
-							case 8:
-								if (buffer.size() != 0)
-									vz = stoi(buffer);
-								stage = -1; // stopper
-								break;
-							}
-							buffer = "";
-						}
-						else buffer.push_back(c);
-						if (stage == -1) break;
-					}
-					faceVec.push_back(make_int3(x - 1, y - 1, z - 1));
-					normalPtr.push_back(make_int3(vx - 1, vy - 1, vz - 1));
-					matIndexes.push_back(currentIndex);
-				}*/
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "v") {
 					float3 point = make_float3(0.f, 0.f, 0.f);
 					point.x = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
@@ -337,68 +263,6 @@ namespace pathtracer {
 
 					normals.push_back(norm);
 				}
-				// old version
-				/*
-				else if (line[0] == 'v' && line[1] == ' ') {
-					float x = 0, y = 0, z = 0;
-					int stage = 0;
-					std::string buffer;
-					verticesCount++;
-
-					// read line
-					for (int i = 2; i < len + 1; i++) {
-						char c = line[i];
-						if (c == ' ' || c == '\0') {
-							switch (stage) {
-							case 0:
-								x = stof(buffer);
-								stage = 1;
-								break;
-							case 1:
-								y = stof(buffer);
-								stage = 2;
-								break;
-							case 2:
-								z = stof(buffer);
-								break;
-
-							}
-							buffer = "";
-						}
-						buffer.push_back(c);
-					}
-					pointsVec.push_back(make_float3(x, y, z) * size + position);
-				}
-				*/
-				/*else if (line[0] == 'v' && line[1] == 'n') {
-					float vx = 0, vy = 0, vz = 0;
-					int stage = 0;
-					std::string buffer;
-
-					// read line
-					for (int i = 3; i < len + 1; i++) {
-						char c = line[i];
-						if (c == ' ' || c == '\0') {
-							switch (stage) {
-							case 0:
-								vx = stof(buffer);
-								stage = 1;
-								break;
-							case 1:
-								vy = stof(buffer);
-								stage = 2;
-								break;
-							case 2:
-								vz = stof(buffer);
-								break;
-
-							}
-							buffer = "";
-						}
-						buffer.push_back(c);
-					}
-					normals.push_back(make_float3(vx, vy, vz));
-				}*/
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "usemtl") {
 					std::string thisName = readUntil(line, 7, '\n', &tokenEnd);
 					currentIndex = getMatIndex(matNb, thisName);
@@ -414,7 +278,6 @@ namespace pathtracer {
 			}
 			std::cout << "Model has " << triangleCount << " triangles, " << triangleCount << " triangles counted." << "\n";
 			objFile.close();
-
 
 			nbTri = triangleCount; // really important line actually !!
 			pathtracer::allTriangles = new pathtracer::Triangle[nbTri];
