@@ -88,6 +88,8 @@ namespace pathtracer {
 		float ior;
 		float3 extinction;
 
+		cudaTextureObject_t diffuseTexture;
+
 		__device__ __host__ inline Material() {
 			baseColor = make_float3(0.f, 0.f, 0.f);
 			emissive = make_float3(0.f, 0.f, 0.f);

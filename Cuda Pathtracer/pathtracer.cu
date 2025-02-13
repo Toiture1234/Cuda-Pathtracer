@@ -4,6 +4,7 @@ namespace pathtracer {
 	// constants
 	__shared__ float3* accum_buffer_dev;
 	__shared__ uint8_t* display_buffer_dev;
+	__shared__ uint8_t* pathtracer_buffer_dev;
 
 	Triangle* cudaTriangleList;
 	int* cudaTrianglesIndex;
@@ -29,6 +30,7 @@ namespace pathtracer {
 		// memory alloc
 		cudaMalloc((void**)&accum_buffer_dev, params.windowSize.x * params.windowSize.y * sizeof(float3));
 		cudaMalloc((void**)&display_buffer_dev, params.windowSize.x * params.windowSize.y * 4 * sizeof(uint8_t));
+		cudaMalloc((void**)&pathtracer_buffer_dev, params.windowSize.x * params.windowSize.y * 4 * sizeof(uint8_t));
 
 		cudaEventRecord(stop);
 		cudaEventSynchronize(stop);
@@ -81,6 +83,8 @@ namespace pathtracer {
 		if (error != cudaSuccess) printf("CAN'T FREE ACCUM_BUFFER_DEV IN pathtracer.cu : %s", cudaGetErrorString(error));
 		error = cudaFree(display_buffer_dev);
 		if (error != cudaSuccess) printf("CAN'T FREE DISPLAY_BUFFER_DEV IN pathtracer.cu : %s", cudaGetErrorString(error));
+		error = cudaFree(pathtracer_buffer_dev);
+		if (error != cudaSuccess) printf("CAN'T FREE PATHTRACER_BUFFER_DEV IN pathtracer.cu : %s", cudaGetErrorString(error));
 
 		cudaFree(cudaTriangleList);
 		cudaFree(cudaBVHNodes);
@@ -95,28 +99,6 @@ namespace pathtracer {
 	
 
 	//pathtracer
-	/*__device__ inline float FresnelReflectAmount(float n1, float n2, Ray ray, Hit info)
-	{
-		// Schlick aproximation
-		float r0 = (n1 - n2) / (n1 + n2);
-		r0 *= r0;
-		float cosX = -dot(info.normal, ray.d);
-		if (n1 > n2)
-		{
-			float n = n1 / n2;
-			float sinT2 = n * n * (1.0 - cosX * cosX);
-			// Total internal reflection
-			if (sinT2 > 1.0)
-				return info.mat.f90;
-			cosX = sqrtf(1.0 - sinT2);
-		}
-		float x = 1.0 - cosX;
-		float ret = r0 + (1.0 - r0) * x * x * x * x * x;
-
-		// adjust reflect multiplier for object reflectivity
-		return mix(info.mat.f0, info.mat.f90, ret);
-	}
-	*/
 	__device__ inline Hit map(Ray ray, int3 &debug, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
 		Hit hit;
 		//hit.mat = Material(make_float3(1., 1., 1.), make_float3(1., 1., 1.), 0.0f, 0.0f, 0.0f, make_float3(0., 0., 0.), 0.0f, 1.0f, make_float3(0., 0., 0.), make_float3(1.5f, 1.5f, 1.5f));
@@ -337,13 +319,12 @@ namespace pathtracer {
 
 		return color;
 	}
-	__global__ inline void renderPixel(kernelParams params, uint8_t* dispBuff, float3* accumBuff, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
+	__global__ inline void renderPixel(kernelParams params, uint8_t* ptBuffer, float3* accumBuff, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
 		int x = threadIdx.x + blockIdx.x * blockDim.x;
 		int y = threadIdx.y + blockIdx.y * blockDim.y;
 		//__syncthread();
 		if (x > params.windowSize.x && y > params.windowSize.y) return;
-		
-		
+
 		int idx = x + y * params.windowSize.x;
 
 		Rand_state rand_state;
@@ -366,30 +347,71 @@ namespace pathtracer {
 			params.rayOrigin += generateUniformSample(rand_state) * params.DOF_strenght;
 			rayDirection = normalize(target - params.rayOrigin);
 		}*/
-		float3 color0 = pixelColor(params, Ray(params.rayOrigin, rayDirection), rand_state, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
+		float3 color0 = max3(pixelColor(params, Ray(params.rayOrigin, rayDirection), rand_state, cudaTriList, cudaTriIndex, cudaNodes, cudaMats), make_float3(0.f,0.f,0.f));
 
 		__syncthreads();
 		if (params.frameIndex == 0 || !params.isRendering)
 			accumBuff[idx] = color0;
 		else
-			if (!isnan(color0.x) && !isnan(color0.y) && !isnan(color0.z))
 				accumBuff[idx] += color0;
 
 		float3 color = accumBuff[idx] / (params.isRendering ? params.frameIndex + 1 : 1.);
 		aces(color);
 		// drawing to texture
-		dispBuff[idx * 4] = uint8_t(clamp(color.x * 255, 0, 255));
-		dispBuff[idx * 4 + 1] = uint8_t(clamp(color.y * 255, 0, 255));
-		dispBuff[idx * 4 + 2] = uint8_t(clamp(color.z * 255, 0, 255));
-		dispBuff[idx * 4 + 3] = uint8_t(255);
+		int colorX = color.x * 255;
+		int colorY = color.y * 255;
+		int colorZ = color.z * 255;
+
+		ptBuffer[idx * 4] = uint8_t(clamp(colorX, 0, 255));
+		ptBuffer[idx * 4 + 1] = uint8_t(clamp(colorY, 0, 255));
+		ptBuffer[idx * 4 + 2] = uint8_t(clamp(colorZ, 0, 255));
+		ptBuffer[idx * 4 + 3] = uint8_t(255);
 	}
 	
+
+	__global__ inline void antialias(kernelParams params, uint8_t* ptBuffer, uint8_t* dispBuffer) {
+		int x = threadIdx.x + blockIdx.x * blockDim.x;
+		int y = threadIdx.y + blockIdx.y * blockDim.y;
+		//__syncthread();
+		if (x > params.windowSize.x && y > params.windowSize.y) return;
+		if (x <= 1 || x >= params.windowSize.x - 1 || y <= 1 || y >= params.windowSize.y - 1) return;
+
+		int idx = x + y * params.windowSize.x;
+		int left = idx - 1;
+		int right = idx + 1;
+		int top = idx - params.windowSize.x;
+		int bottom = idx + params.windowSize.x;
+
+		int colorR = (int)ptBuffer[idx * 4] +
+					 (int)ptBuffer[left * 4] * 0.5 +
+					 (int)ptBuffer[right * 4] * 0.5 +
+					 (int)ptBuffer[top * 4] * 0.5 +
+					 (int)ptBuffer[bottom * 4] * 0.5;
+
+		int colorG = (int)ptBuffer[idx * 4 + 1] +
+					 (int)ptBuffer[left * 4 + 1] * 0.5 +
+					 (int)ptBuffer[right * 4 + 1] * 0.5 +
+					 (int)ptBuffer[top * 4 + 1] * 0.5 +
+					 (int)ptBuffer[bottom * 4 + 1] * 0.5;
+
+		int colorB = (int)ptBuffer[idx * 4 + 2] +
+					 (int)ptBuffer[left * 4 + 2] * 0.5 +
+					 (int)ptBuffer[right * 4 + 2] * 0.5 +
+					 (int)ptBuffer[top * 4 + 2] * 0.5 +
+					 (int)ptBuffer[bottom * 4 + 2] * 0.5;
+
+		dispBuffer[idx * 4] = uint8_t(colorR * 0.3333f);
+		dispBuffer[idx * 4 + 1] = uint8_t(colorG * 0.3333f);
+		dispBuffer[idx * 4 + 2] = uint8_t(colorB * 0.3333f);
+		dispBuffer[idx * 4 + 3] = uint8_t(255);
+	}
 	void render(kernelParams params) {
 		const int threadSize = 16;
 		dim3 blockSize(8, 8, 1U);
 		dim3 gridSize(int(params.windowSize.x / blockSize.x), int(params.windowSize.y / blockSize.y), 1U);
-		renderPixel<<<gridSize, blockSize >>>(params, display_buffer_dev, accum_buffer_dev, cudaTriangleList, cudaTrianglesIndex, cudaBVHNodes, cudaMaterialList);
+		renderPixel<<<gridSize, blockSize >>>(params, pathtracer_buffer_dev, accum_buffer_dev, cudaTriangleList, cudaTrianglesIndex, cudaBVHNodes, cudaMaterialList);
 		
+		antialias<<<gridSize, blockSize>>>(params, pathtracer_buffer_dev, display_buffer_dev);
 		if (cudaPeekAtLastError() != cudaSuccess) {
 			printf("Error with kernel : %s \n", cudaGetErrorString(cudaGetLastError()));
 		}
