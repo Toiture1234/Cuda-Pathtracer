@@ -3,6 +3,8 @@
 //#include "cuda_runtime.h"
 //#include "device_launch_parameters.h"
 
+#include <SFML/Graphics.hpp>
+
 #include "cuda.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -34,7 +36,9 @@ using namespace std;
 #include "utility/cuda_utility.cuh"
 #include "disney.cuh"
 
+#define __CUDA_INTERNAL_COMPILATION__
 #include "utility/intersectors.cuh"
+#undef __CUDA_INTERNAL_COMPILATION__
 
 #include "file_reader.h"
 #include "BVH/BVH_builder.cpp"

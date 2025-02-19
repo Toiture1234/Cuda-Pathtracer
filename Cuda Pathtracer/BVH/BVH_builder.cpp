@@ -9,7 +9,7 @@ namespace pathtracer {
 	static BVH_Node* bvhNode;
 	static int rootNodeIdx = 0, nodesUsed = 1;
 
-	static void updateNodesBounds(int nodeIdx) {
+	inline void updateNodesBounds(int nodeIdx) {
 		BVH_Node& node = bvhNode[nodeIdx];
 		node.aabbMin = make_float3(1e30, 1e30, 1e30);
 		node.aabbMax = make_float3(-1e30, -1e30, -1e30);
@@ -25,7 +25,7 @@ namespace pathtracer {
 		}
 	}
 
-	static float evalSAH(BVH_Node& node, int axis, float pos) {
+	inline float evalSAH(BVH_Node& node, int axis, float pos) {
 		aabb leftB, rightB;
 		int leftCount = 0, rightCount = 0;
 		for (unsigned int i = 0; i < node.triCount; i++) {
@@ -46,7 +46,7 @@ namespace pathtracer {
 		float cost = leftCount * leftB.area() + rightCount * rightB.area();
 		return cost > 0 ? cost : 1e30;
 	}
-	static float findBestPlane(BVH_Node& node, int& axis, float& split) {
+	inline float findBestPlane(BVH_Node& node, int& axis, float& split) {
 		float bCost = 1e30;
 		for (int a = 0; a < 3; a++) {
 			float bMin = getN(node.aabbMin, a);
@@ -63,7 +63,7 @@ namespace pathtracer {
 		}
 		return bCost;
 	}
-	static void subdivide(int nodeIdx) {
+	inline void subdivide(int nodeIdx) {
 		BVH_Node& node = bvhNode[nodeIdx];
 		//if (node.triCount <= 20) return;
 		float3 e = node.aabbMax - node.aabbMin;
@@ -112,7 +112,7 @@ namespace pathtracer {
 		subdivide(rightChildIdx);
 	}
 
-	static void buildBVH(int nbTri){
+	inline void buildBVH(int nbTri){
 
 		pathtracer::bvhNode = new BVH_Node[nbTri * 2 - 1];
 		for (int i = 0; i < nbTri; i++) {

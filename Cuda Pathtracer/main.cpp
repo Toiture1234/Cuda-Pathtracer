@@ -1,8 +1,7 @@
 // a CUDA based pathtracer, no volumes yet
 // made by Toiture0x04D2
-// TODO : add volume support (and maybe an integrated atmosphere idk yet)
+// TODO : add volume support (and maybe an integrated atmosphere idk yet) and also shader based antialiasing
 
-#include <SFML/Graphics.hpp>
 #include "pathtracer.cuh"
 
 // important includes 
@@ -157,6 +156,7 @@ int main()
     sf::Texture display_texture;
     if (!display_texture.create(IMG_SIZE_X, IMG_SIZE_Y)) std::cout << "ERROR CREATING DISPLAY TEXTURE IN main.cpp \n";
     display_texture.update(params.pixelBuffer);
+    display_texture.setSmooth(true);
 
     // mostly random things (clock and font)
     float totalTime = 0.;

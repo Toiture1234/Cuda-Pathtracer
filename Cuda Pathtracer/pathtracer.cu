@@ -11,6 +11,8 @@ namespace pathtracer {
 	BVH_Node* cudaBVHNodes;
 	Material* cudaMaterialList;
 
+	__device__ int RootandUsedNodes_dev[2];
+
 	// host functions
 	void initCuda(kernelParams& params) {
 		printf("Init cuda...\n");
@@ -99,6 +101,174 @@ namespace pathtracer {
 	
 
 	//pathtracer
+
+	__device__ inline bool triangleIntersect(Hit& hit, Ray ray, Triangle tri, Material mat) {
+		float3 edge1 = tri.b - tri.a;
+		float3 edge2 = tri.c - tri.a;
+		float3 h = cross(ray.d, edge2);
+		float a = dot(edge1, h);
+		if (a > -0.0001f && a < 0.0001f) return false;
+		float f = 1. / a;
+		float3 s = ray.o - tri.a;
+		float u = f * dot(s, h);
+		if (u < 0. || u > 1) return false;
+		float3 q = cross(s, edge1);
+		float v = f * dot(ray.d, q);
+		if (v < 0 || u + v > 1) return false;
+		float t = f * dot(edge2, q);
+
+		if (t < 0. || t > hit.t) return false;
+		float3 oldAbsorption = hit.mat.extinction;
+
+		hit.t = t;
+		hit.mat = mat;
+		hit.hit = true;
+
+		float w = 1. - u - v;
+
+		if (mat.useTexture) {
+			float2 samplePos = tri.tA * w + tri.tB * u + tri.tC * v;
+			float3 pos = ray.o + ray.d * t;
+			float4 read = tex2D<float4>(mat.diffuseTexture, samplePos.x, samplePos.y);
+			hit.mat.baseColor = make_float3(read.x, read.y, read.z);
+			//hit.mat.baseColor = make_float3(samplePos.x, samplePos.y, 0.);
+		}
+
+		//some shit to refine here
+		float3 normalCalc = normalize(cross(edge1, edge2));
+		float mult = -sign(dot(ray.d, normalCalc));
+		normalCalc *= mult;
+		float3 normalFile = normalize(tri.nA * w + tri.nB * u + tri.nC * v) * mult;
+		hit.normal = dot(normalFile, ray.d) < 0.f ? normalFile : normalCalc;
+		//hit.normal = normalCalc;
+
+		return true;
+
+	}
+
+	__device__ inline bool BVHIntersect(Hit& hit, Ray ray, int3& debug, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
+		/*
+		BVH_Node* node = &Nodes_dev[0], *stack[N];
+		// slow asf
+		//BVH_Node** stack = (BVH_Node**)malloc(64);
+		int stackPtr = 0;
+
+
+		// DONT WORK FUCKKKKK
+		if (boxIntersectF(hit.t, ray, node->aabbMin, node->aabbMax) < 1e30) {
+			while (1) {
+				//if (boxIntersectF(hit.t, ray, node->aabbMin, node->aabbMax) != 1e30) {
+				debug.x++;
+				if (node->triCount >= 1) {
+					for (int i = 0; i < node->triCount; i++) {
+						if (triangleIntersect(hit, ray, dev_TRI[dev_ABC[i + node->firstTriIdx]], mat)) {
+							debug.y++;
+						}
+					}
+
+					if (stackPtr == 0) break; else node = stack[--stackPtr];
+					continue;
+				}
+				BVH_Node* child1 = &Nodes_dev[node->leftNode];
+				BVH_Node* child2 = &Nodes_dev[node->leftNode + 1];
+				float dist1 = boxIntersectF(hit.t, ray, child1->aabbMin, child1->aabbMax);
+				float dist2 = boxIntersectF(hit.t, ray, child2->aabbMin, child2->aabbMax);
+				if (dist1 > dist2) {
+					float d = dist1; dist1 = dist2; dist2 = d;
+					BVH_Node* c = child1; child1 = child2; child2 = c;
+				}
+				if (dist1 == 1e30) {
+					if (stackPtr == 0) break;
+					else node = stack[--stackPtr];
+				}
+				else {
+
+					node = child1;
+					if (dist2 != 1e30) {
+						stack[stackPtr++] = child2;
+					}
+				}
+			}
+		}
+		*/
+
+
+		//BVH_Node stack[10];
+		int stack[10];
+		int stackIdx = 0;
+		stack[stackIdx++] = 0;
+
+		float dst = hit.t;
+		float3 normal = make_float3(0., 0., 0.);
+		bool hasIntersected = false;
+		float2 minMax = make_float2(-1, dst);
+
+		float3 invDir = 1. / ray.d;
+
+		while (stackIdx > 0)
+		{
+			BVH_Node node = cudaNodes[stack[--stackIdx]];
+			if (boxIntersectF(hit.t, ray, node.aabbMin, node.aabbMax, invDir) < hit.t) {
+				if (node.triCount > 0) { // leaf node
+					for (int i = 0; i < node.triCount; i++) { // leaf node
+						triangleIntersect(hit, ray, cudaTriList[cudaTriIndex[i + node.leftFirst]], cudaMats[cudaTriList[cudaTriIndex[i + node.leftFirst]].matIndex]);
+						/*float4 curr = triangleIntersect_noMat(ray, dev_TRI[dev_ABC[i + node.firstTriIdx]]);
+
+						if(curr.w > 0.) {
+							minMax = make_float2(fmaxf(minMax.x, dst), fminf(minMax.y, dst));
+							if (curr.w < dst) {
+								dst = curr.w;
+								normal = make_float3(curr.x, curr.y, curr.z);
+								hasIntersected = true;
+							}
+						}*/
+					}
+					debug.z++;
+				}
+				else {
+					//stack[stackIdx++] = Nodes_dev[node.leftNode];
+					//stack[stackIdx++] = Nodes_dev[node.leftNode + 1];
+
+					BVH_Node childLeft = cudaNodes[node.leftFirst];
+					BVH_Node childRight = cudaNodes[node.leftFirst + 1];
+
+					float dstLeft = boxIntersectF(hit.t, ray, childLeft.aabbMin, childLeft.aabbMax, invDir);
+					float dstRight = boxIntersectF(hit.t, ray, childRight.aabbMin, childRight.aabbMax, invDir);
+					int left = node.leftFirst, right = node.leftFirst + 1;
+
+					/*if (dstLeft > dstRight) {
+						int c = right, right = left, left = c;
+						float cf = dstRight, dstRight = dstLeft, dstLeft = cf;
+					}
+					if (dstLeft < hit.t) stack[stackIdx++] = left;
+					if (dstRight < hit.t) stack[stackIdx++] = right;*/
+					if (dstLeft > dstRight) {
+						if (dstLeft < hit.t) stack[stackIdx++] = left;
+						if (dstRight < hit.t) stack[stackIdx++] = right;
+					}
+					else {
+						if (dstRight < hit.t) stack[stackIdx++] = right;
+						if (dstLeft < hit.t) stack[stackIdx++] = left;
+					}
+
+				}
+				debug.x++;
+			}
+		}
+
+		/*if (hasIntersected) {
+			bool inside = minMax.x <= minMax.y;
+			hit.normal = normal;
+			hit.t = dst;
+
+			hit.mat = mat;
+			hit.mat.absorption = inside ? mat.absorption : make_float3(0., 0., 0.);
+			//hit.mat.absorption = mat.absorption;
+			hit.mat.n = inside ? hit.mat.IOR : 1. / hit.mat.IOR;
+			hit.hit = true;
+		}*/
+
+	}
 	__device__ inline Hit map(Ray ray, int3 &debug, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
 		Hit hit;
 		//hit.mat = Material(make_float3(1., 1., 1.), make_float3(1., 1., 1.), 0.0f, 0.0f, 0.0f, make_float3(0., 0., 0.), 0.0f, 1.0f, make_float3(0., 0., 0.), make_float3(1.5f, 1.5f, 1.5f));
@@ -288,8 +458,9 @@ namespace pathtracer {
 			int3 debugV = make_int3(0, 0, 0);
 			Hit info = map(ray, debugV, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
 			color = info.normal * 0.5 + 0.5;
+			//float4 test = tex2D<float4>(cudaMats[0].diffuseTexture, 0.f, 0.f);
 			//color = dot(ray.d, info.normal) < 0.f ? make_float3(0.f, 0.f, 1.f) : make_float3(1.f, 0.f, 0.f);
-			if (dot(info.normal, info.normal) == 0.) color = skyGradient(ray.d, params);
+			//if (dot(info.normal, info.normal) == 0.) color = skyGradient(ray.d, params);
 			//if(info.t > params.focalDistance)color = mix(color, make_float3(0.5, 1., 0.5), 0.7);
 			//color.x = info.mat.absorption.x;
 			//color.y = clamp(info.t / 50., 0.0f, 1.0f);
@@ -409,9 +580,9 @@ namespace pathtracer {
 		const int threadSize = 16;
 		dim3 blockSize(8, 8, 1U);
 		dim3 gridSize(int(params.windowSize.x / blockSize.x), int(params.windowSize.y / blockSize.y), 1U);
-		renderPixel<<<gridSize, blockSize >>>(params, pathtracer_buffer_dev, accum_buffer_dev, cudaTriangleList, cudaTrianglesIndex, cudaBVHNodes, cudaMaterialList);
+		renderPixel<<<gridSize, blockSize >>>(params, display_buffer_dev, accum_buffer_dev, cudaTriangleList, cudaTrianglesIndex, cudaBVHNodes, cudaMaterialList);
 		
-		antialias<<<gridSize, blockSize>>>(params, pathtracer_buffer_dev, display_buffer_dev);
+		//antialias<<<gridSize, blockSize>>>(params, pathtracer_buffer_dev, display_buffer_dev);
 		if (cudaPeekAtLastError() != cudaSuccess) {
 			printf("Error with kernel : %s \n", cudaGetErrorString(cudaGetLastError()));
 		}

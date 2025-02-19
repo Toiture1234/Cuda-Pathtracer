@@ -5,7 +5,10 @@ namespace pathtracer {
 	{
 		float3 o, d;
 		// constructors
-		__device__ inline Ray() {}
+		__device__ inline Ray() {
+			o = make_float3(0.f, 0.f, 0.f);
+			d = make_float3(0.f, 0.f, 0.f);
+		}
 		__device__ inline Ray(float3 O, float3 D) {
 			o = O; d = D;
 		}
@@ -88,7 +91,8 @@ namespace pathtracer {
 		float ior;
 		float3 extinction;
 
-		cudaTextureObject_t diffuseTexture;
+		cudaTextureObject_t diffuseTexture; // actually texture of float4
+		bool useTexture;
 
 		__device__ __host__ inline Material() {
 			baseColor = make_float3(0.f, 0.f, 0.f);
@@ -103,6 +107,7 @@ namespace pathtracer {
 			clearcoatRoughness = 0.f;
 			specTrans = 0.f;
 			ior = 1.5f;
+			useTexture = 0;
 		};
 	};
 	struct Hit {
@@ -132,6 +137,9 @@ namespace pathtracer {
 		}
 		__device__ __host__ inline Triangle(float3 A, float3 B, float3 C) {
 			a = A; b = B; c = C;
+			nA = nB = nC = origin = make_float3(0.f, 0.f, 0.f);
+			tA = tB = tC = make_float2(0.f, 0.f);
+			matIndex = 0;
 		}
 		__device__ __host__ ~Triangle() {};
 	};
