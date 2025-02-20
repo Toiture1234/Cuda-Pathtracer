@@ -345,7 +345,7 @@ namespace pathtracer {
 		//return vec3(HG(0.9,costh0)) ;
 	}
 	__device__ inline float3 skyColor(float3 rayDir, kernelParams params) {
-		//return make_float3(0.f, 0.f, 0.f);
+		return make_float3(0.f, 0.f, 0.f);
 		//float3 skyGrad = mix(make_float3(0.4, 0.7, 1.), make_float3(0.8, 0.9, 1.), exp(-abs(rayDir.y) * 5.)) * 0.5;
 		//return skyGrad * 3.;
 		//float sineV = fmax(sin(rayDir.x * 7.) * sin(rayDir.z * 7.), 0.);
@@ -355,7 +355,7 @@ namespace pathtracer {
 		//return dot(rayDir, params.sunDirection) > 0.95 ? make_float3(20., 20., 20.) : make_float3(0.,0.,0.);
 		//return skyGrad + smoothstep(1., 0.9, length(rayDir - params.sunDirection) / 0.25) * 50.;
 		//return skyGradient(rayDir, params);
-		return make_float3(5.f, 5.f, 5.f);
+		//return make_float3(5.f, 5.f, 5.f);
 	}
 	__device__ inline void pathtrace(float& result, kernelParams params, Ray ray, Rand_state& state, int channel, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
 		float rayColor = 1.0;

@@ -36,7 +36,7 @@ namespace pathtracer {
 		float* imgArray = new float[size.x * size.y * 4];
 		for (int x = 0; x < size.x; x++) {
 			for (int y = 0; y < size.y; y++) {
-				sf::Color pxCol = img.getPixel(x, y);
+				sf::Color pxCol = img.getPixel(x, size.y - y - 1);
 
 				int idx = x + y * size.x;
 				imgArray[idx * 4] = (float)pxCol.r / 255.0f;
