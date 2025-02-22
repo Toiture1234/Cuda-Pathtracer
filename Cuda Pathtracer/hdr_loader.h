@@ -3,6 +3,7 @@
 //
 // utility code to load HDR image files in Radiance's RGBE-encoded ".hdr" file format
 //
+// big thanks to https://github.com/Apress/ray-tracing-gems/tree/master/Ch_28_Ray_Tracing_Inhomogeneous_Volumes
 
 #include <cstdio>
 #include <cstring>
