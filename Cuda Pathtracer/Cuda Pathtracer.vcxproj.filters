@@ -51,6 +51,12 @@
       <Filter>Fichiers sources</Filter>
     </ClInclude>
     <ClInclude Include="disney.cuh" />
+    <ClInclude Include="hdr_loader.h">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </ClInclude>
+    <ClInclude Include="button.h">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="pathtracer.cu">

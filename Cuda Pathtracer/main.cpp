@@ -148,6 +148,13 @@ int main()
 
     params.sunDirection = pathtracer::normalize(make_float3(1., 0.7, -1.));
 
+    // 
+    cudaArray_t cubeMatData = 0;
+    if (!pathtracer::genTextureFromHDR(&params.cubeMap, &cubeMatData, "assets/models/textures/cubemaps/studio_small_08_2k.hdr")) {
+        std::cout << "Failed to load hdr !\n";
+        exit(1);
+    }
+
     // scene creation
     initScene(params);
     

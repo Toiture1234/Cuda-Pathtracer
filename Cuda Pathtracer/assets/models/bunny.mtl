@@ -15,7 +15,6 @@ Pc 0.000000
 Pcr 0.549685
 aniso 0.000000
 anisor 0.000000
-map_Kd hobbiton.png
 
 newmtl light
 Kd 0.800000 0.800000 0.800000

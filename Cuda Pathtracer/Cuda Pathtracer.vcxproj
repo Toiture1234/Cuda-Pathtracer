@@ -140,9 +140,11 @@
     <CudaCompile Include="pathtracer.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="button.h" />
     <ClInclude Include="BVH\BVH_builder.cpp" />
     <ClInclude Include="disney.cuh" />
     <ClInclude Include="file_reader.h" />
+    <ClInclude Include="hdr_loader.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="utility\constants.cuh" />
     <ClInclude Include="utility\cuda_utility.cuh" />

@@ -128,10 +128,13 @@ namespace pathtracer {
 
 		if (mat.useTexture) {
 			float2 samplePos = tri.tA * w + tri.tB * u + tri.tC * v;
-			float3 pos = ray.o + ray.d * t;
 			float4 read = tex2D<float4>(mat.diffuseTexture, samplePos.x, samplePos.y);
 			hit.mat.baseColor = make_float3(read.x, read.y, read.z);
-			//hit.mat.baseColor = make_float3(samplePos.x, samplePos.y, 0.);
+		}
+		if (mat.use_mapPr) {
+			float2 samplePos = tri.tA * w + tri.tB * u + tri.tC * v;
+			float4 read = tex2D<float4>(mat.roughnessTexture, samplePos.x, samplePos.y);
+			hit.mat.roughness = read.x;
 		}
 
 		//some shit to refine here
@@ -312,11 +315,7 @@ namespace pathtracer {
 		sphereIntersect(hit, ray, make_float4(200., 50., 0., 50.), sphMat);
 		sphMat.anisotropic = 0.99;
 		sphereIntersect(hit, ray, make_float4(350., 50., 0., 50.), sphMat);
-		
-		Material boxMat;
-		boxMat.emissive = make_float3(10.f, 10.f, 10.f);
-		boxMat.baseColor = make_float3(1.f, 1.f, 1.f);
-		boxIntersect(hit, ray, make_float3(-100.0f, 270.0f, -100.0f), make_float3(100.0f, 290.f, 100.0f), boxMat);*/
+		*/
 		
 		return hit;
 	}
@@ -345,7 +344,7 @@ namespace pathtracer {
 		//return vec3(HG(0.9,costh0)) ;
 	}
 	__device__ inline float3 skyColor(float3 rayDir, kernelParams params) {
-		return make_float3(0.f, 0.f, 0.f);
+		//return make_float3(0.f, 0.f, 0.f);
 		//float3 skyGrad = mix(make_float3(0.4, 0.7, 1.), make_float3(0.8, 0.9, 1.), exp(-abs(rayDir.y) * 5.)) * 0.5;
 		//return skyGrad * 3.;
 		//float sineV = fmax(sin(rayDir.x * 7.) * sin(rayDir.z * 7.), 0.);
@@ -356,6 +355,9 @@ namespace pathtracer {
 		//return skyGrad + smoothstep(1., 0.9, length(rayDir - params.sunDirection) / 0.25) * 50.;
 		//return skyGradient(rayDir, params);
 		//return make_float3(5.f, 5.f, 5.f);
+		const float4 texVal = tex2D<float4>(params.cubeMap,
+			atan2f(rayDir.z, rayDir.x) * (float)(0.5f / PI) + 0.5f, 1.f - (rayDir.y * 0.5f + 0.5f));
+		return make_float3(texVal.x, texVal.y, texVal.z);
 	}
 	__device__ inline void pathtrace(float& result, kernelParams params, Ray ray, Rand_state& state, int channel, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
 		float rayColor = 1.0;
@@ -363,7 +365,7 @@ namespace pathtracer {
 		Hit info;
 		bool inside = false;
 		int3 nullVal = make_int3(0, 0, 0);
-		for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < 50; i++) {
 			info = map(ray, nullVal, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
 			info.isInside = inside;
 
@@ -440,7 +442,7 @@ namespace pathtracer {
 			if (pdf > 0.f) rayColor *= getN(bsdf / pdf, channel);
 			else return;
 
-			ray.o += ray.d * 0.1f;
+			ray.o += ray.d * 1.f;
 
 			// russian roulette 
 			{
@@ -461,7 +463,7 @@ namespace pathtracer {
 			color = info.normal * 0.5 + 0.5;
 			//float4 test = tex2D<float4>(cudaMats[0].diffuseTexture, 0.f, 0.f);
 			//color = dot(ray.d, info.normal) < 0.f ? make_float3(0.f, 0.f, 1.f) : make_float3(1.f, 0.f, 0.f);
-			//if (dot(info.normal, info.normal) == 0.) color = skyGradient(ray.d, params);
+			if (dot(info.normal, info.normal) == 0.) color = skyColor(ray.d, params);
 			//if(info.t > params.focalDistance)color = mix(color, make_float3(0.5, 1., 0.5), 0.7);
 			//color.x = info.mat.absorption.x;
 			//color.y = clamp(info.t / 50., 0.0f, 1.0f);

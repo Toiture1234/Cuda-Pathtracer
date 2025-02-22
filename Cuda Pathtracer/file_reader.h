@@ -70,6 +70,39 @@ namespace pathtracer {
 
 		return true;;
 	}
+	inline bool genTextureFromHDR(cudaTextureObject_t* tex, cudaArray_t* texData, std::string path) {
+		
+		// array building
+		float* imgArray;
+		sf::Vector2u size;
+		if (!load_hdr_float4(&imgArray, &size.x, &size.y, path.c_str())) {
+			return false;
+		}
+
+		cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float4>();
+		size_t spitch = size.x * sizeof(float4);
+		cudaMallocArray(texData, &channelDesc, size.x, size.y);
+
+		cudaMemcpy2DToArray(*texData, 0, 0, imgArray, spitch, size.x * sizeof(float4), size.y, cudaMemcpyHostToDevice);
+		//cudaMemcpyToArray(*texData, 0, 0, imgArray, size.x * size.y * sizeof(float4), cudaMemcpyHostToDevice);
+
+		cudaResourceDesc resDesc;
+		memset(&resDesc, 0, sizeof(resDesc));
+		resDesc.resType = cudaResourceTypeArray;
+		resDesc.res.array.array = *texData;
+
+		cudaTextureDesc texDesc;
+		memset(&texDesc, 0, sizeof(texDesc));
+		texDesc.addressMode[0] = cudaAddressModeWrap;
+		texDesc.addressMode[1] = cudaAddressModeWrap;
+		texDesc.filterMode = cudaFilterModeLinear;
+		texDesc.readMode = cudaReadModeElementType;
+		texDesc.normalizedCoords = true;
+
+		cudaCreateTextureObject(tex, &resDesc, &texDesc, NULL);
+
+		return true;;
+	}
 	inline bool readMtlFile(int* numOfMaterials, std::string path) { // perform memory allocations inside this, sounds risky
 		std::vector<readableMaterial> matList;
 
@@ -118,6 +151,15 @@ namespace pathtracer {
 					//std::cout << "d of " << current.name << " : " << value << "\n";
 					current.matProperties.specTrans = 1. - value;
 				}
+				/*else if (readUntil(line, 0, ' ', &tokenEnd) == "Tf") {
+					float3 values = make_float3(0.f, 0.f, 0.f);
+
+					values.x = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
+					values.y = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
+					values.z = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
+					//std::cout << "Ke of " << current.name << " : " << values.x << " " << values.y << " " << values.z << "\n";
+					current.matProperties.specTrans = (values.x + values.y + values.z) * 0.3333f;
+				}*/
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "Ni") {
 					float value = 1.0f;
 					value = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
@@ -151,6 +193,13 @@ namespace pathtracer {
 					if (!genTexture(&current.matProperties.diffuseTexture, &cuArr, path)) return false;
 					current.matProperties.useTexture = true;
 				}
+				else if (readUntil(line, 0, ' ', &tokenEnd) == "map_Pr") {
+					std::string path = "assets/models/" + readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
+
+					cudaArray_t cuArr = 0;
+					if (!genTexture(&current.matProperties.roughnessTexture, &cuArr, path)) return false;
+					current.matProperties.use_mapPr = true;
+				}
 			}
 			matList.push_back(current);
 
@@ -175,6 +224,8 @@ namespace pathtracer {
 				materialList[0] = Material(/*make_float3(0.f, 0.f, 0.f), make_float3(0.f, 0.f, 0.f), 0.f, 0.f, 0.f, make_float3(0.f, 0.f, 0.f), 0.f, 0.f, make_float3(0.f, 0.f, 0.f), make_float3(0.f, 0.f, 0.f)*/);
 			}
 			return true;
+
+			mtlFile.close();
 		}
 		return false;
 	}
@@ -376,14 +427,18 @@ namespace pathtracer {
 				if (alloc.z < 0) alloc.z = pointsVec.size() - alloc.z - 1;
 
 				allTriangles[i] = Triangle(pointsVec[alloc.x], pointsVec[alloc.y], pointsVec[alloc.z]);
-				allTriangles[i].nA = normalize(normals[nPtr.x]);
-				allTriangles[i].nB = normalize(normals[nPtr.y]);
-				allTriangles[i].nC = normalize(normals[nPtr.z]);
 				allTriangles[i].matIndex = matIndexes[i];
 
-				allTriangles[i].tA = texCoord[tPtr.x];
-				allTriangles[i].tB = texCoord[tPtr.y];
-				allTriangles[i].tC = texCoord[tPtr.z];
+				if (anyNormals) {
+					allTriangles[i].nA = normalize(normals[nPtr.x]);
+					allTriangles[i].nB = normalize(normals[nPtr.y]);
+					allTriangles[i].nC = normalize(normals[nPtr.z]);
+				}
+				if (anyTextures) {
+					allTriangles[i].tA = texCoord[tPtr.x];
+					allTriangles[i].tB = texCoord[tPtr.y];
+					allTriangles[i].tC = texCoord[tPtr.z];
+				}
 
 				TriangleIdx[i] = i;
 			}

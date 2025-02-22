@@ -36,12 +36,13 @@ using namespace std;
 #include "utility/cuda_utility.cuh"
 #include "disney.cuh"
 
-#define __CUDA_INTERNAL_COMPILATION__
 #include "utility/intersectors.cuh"
-#undef __CUDA_INTERNAL_COMPILATION__
 
+#include "button.h"
+#include "hdr_loader.h"
 #include "file_reader.h"
 #include "BVH/BVH_builder.cpp"
+
 
 #define SCENE 0
 
@@ -65,6 +66,7 @@ namespace pathtracer {
 		uint8_t* pixelBuffer;
 
 		bool isRendering;
+		cudaTextureObject_t cubeMap;
 	};
 	void initCuda(kernelParams &params);
 	void render(kernelParams params);

@@ -91,8 +91,11 @@ namespace pathtracer {
 		float ior;
 		float3 extinction;
 
-		cudaTextureObject_t diffuseTexture; // actually texture of float4
+		cudaTextureObject_t diffuseTexture = 0; // actually texture of float4
 		bool useTexture;
+
+		cudaTextureObject_t roughnessTexture = 0;
+		bool use_mapPr;
 
 		__device__ __host__ inline Material() {
 			baseColor = make_float3(0.f, 0.f, 0.f);
@@ -108,6 +111,7 @@ namespace pathtracer {
 			specTrans = 0.f;
 			ior = 1.5f;
 			useTexture = 0;
+			use_mapPr = 0;
 		};
 	};
 	struct Hit {
