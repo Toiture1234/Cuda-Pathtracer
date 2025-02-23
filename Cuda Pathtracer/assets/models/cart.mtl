@@ -1,0 +1,49 @@
+# Blender 4.3.2 MTL File: 'None'
+# www.blender.org
+
+newmtl CoffeeCart_01_cart
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd textures/CoffeeCart_01_cart_diff_1k.png
+map_Pm textures/CoffeeCart_01_cart_metallic_1k.png
+map_Pr textures/CoffeeCart_01_cart_roughness_1k.png
+map_Bump -bm 1.000000 textures/CoffeeCart_01_cart_nor_gl_1k.png
+
+newmtl CoffeeCart_01_mugs
+Kd 0.800000 0.800000 0.800000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+Pr 0.154545
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+
+newmtl CoffeeCart_01_props
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd textures/CoffeeCart_01_props_diff_1k.png
+map_Pm textures/CoffeeCart_01_props_metallic_1k.png
+map_Pr textures/CoffeeCart_01_props_roughness_1k.png
+map_Bump -bm 1.000000 textures/CoffeeCart_01_props_nor_gl_1k.png

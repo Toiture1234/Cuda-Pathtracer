@@ -40,6 +40,7 @@ using namespace std;
 
 #include "button.h"
 #include "hdr_loader.h"
+#include "image_loader.h"
 #include "file_reader.h"
 #include "BVH/BVH_builder.cpp"
 

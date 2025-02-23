@@ -137,11 +137,16 @@ namespace pathtracer {
 		float2 samplePos = tri.tA * w + tri.tB * u + tri.tC * v;
 		if (mat.useTexture) {
 			float4 read = tex2D<float4>(mat.diffuseTexture, samplePos.x, samplePos.y);
-			hit.mat.baseColor = make_float3(read.x, read.y, read.z);
+			hit.mat.baseColor = make_float3(read.x, read.y, read.z) * read.w;
+			hit.mat.alpha = read.w;
 		}
 		if (mat.use_mapPr) {
-			float4 read = tex2D<float4>(mat.roughnessTexture, samplePos.x, samplePos.y);
-			hit.mat.roughness = read.x;
+			float read = tex2D<float>(mat.roughnessTexture, samplePos.x, samplePos.y);
+			hit.mat.roughness = read;
+		}
+		if (mat.use_mapPm) {
+			float read = tex2D<float>(mat.metallicTexture, samplePos.x, samplePos.y);
+			hit.mat.metallic = read;
 		}
 		if (mat.use_mapNor) {
 			float3 T, B;
@@ -150,11 +155,12 @@ namespace pathtracer {
 			hit.normal = ToWorld(T, B, hit.normal, make_float3(read.x * 2.f - 1.f, read.y * 2.f - 1.f, read.z * 2.f - 1.f));
 		}
 		//hit.normal = dot(hit.normal, ray.d) < 0.f ? hit.normal : normalCalc;
+		//hit.normal *= sign(dot(hit.normal, normalCalc));
+		hit.normal = normalize(mix(hit.normal, normalCalc, smoothstep(-0.02, 0.1, dot(hit.normal, ray.d))));
 		return true;
 	}
 
-	__device__ inline bool BVHIntersect(Hit& hit, Ray ray, int3& debug, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
-
+	__device__ inline bool BVHIntersect(Hit& hit, Ray ray, int3& debug, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats, bool sunRay) {
 		//BVH_Node stack[10];
 		int stack[10];
 		int stackIdx = 0;
@@ -173,9 +179,11 @@ namespace pathtracer {
 			if (boxIntersectF(hit.t, ray, node.aabbMin, node.aabbMax, invDir) < hit.t) {
 				if (node.triCount > 0) { // leaf node
 					for (int i = 0; i < node.triCount; i++) { // leaf node
-						triangleIntersect(hit, ray, cudaTriList[cudaTriIndex[i + node.leftFirst]], cudaMats[cudaTriList[cudaTriIndex[i + node.leftFirst]].matIndex]);
+						if (triangleIntersect(hit, ray, cudaTriList[cudaTriIndex[i + node.leftFirst]], cudaMats[cudaTriList[cudaTriIndex[i + node.leftFirst]].matIndex])) {
+							debug.z++;
+							if (sunRay) return true;
+						}
 					}
-					debug.z++;
 				}
 				else {
 					BVH_Node childLeft = cudaNodes[node.leftFirst];
@@ -198,6 +206,15 @@ namespace pathtracer {
 				debug.x++;
 			}
 		}
+		return false;
+	}
+	__device__ inline float3 shadowRay(Hit info, Ray sunRay, Ray ray, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats, int3& debug) {
+		if (BVHIntersect(info, sunRay, debug, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, true)) {
+			return make_float3(0.f, 0.f, 0.f);
+		}
+		float pdf;
+		float3 value = Disney::DisneyEval(info, ray.d * 1.0f, info.normal, sunRay.d, pdf);
+		return value;
 	}
 	__device__ inline Hit map(Ray ray, int3 &debug, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
 		Hit hit;
@@ -213,7 +230,7 @@ namespace pathtracer {
 		//sphereIntersect(hit, ray, make_float4(2.6, 15.1, 20.3, 0.75), Material(make_float3(1., 1., 1.), make_float3(1., 1., 1.), 0., 0., 0.9, make_float3(0., 0., 0.), 0., 1., make_float3(10., 2.8, 0.039) * 2., 1.5));
 		
 		//planeIntersect(hit, ray, make_float3(0., 1., 0.), -2., Material(make_float3(0.1, 0.1, 0.2), make_float3(1., 1., 1.), 0.0, 0., 0., make_float3(0.f, 0.f, 0.f), 0.f, 1.f, make_float3(0.f, 0.f, 0.f), make_float3(1.5f, 1.5f, 1.5f)));
-		BVHIntersect(hit, ray, debug, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
+		BVHIntersect(hit, ray, debug, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, 0);
 		//__syncthreads();
 
 		/*Material sphMat;
@@ -346,21 +363,25 @@ namespace pathtracer {
 			rayColor /= rayProba;
 			*/
 
+			float rC = randC(&state);
+			if (rC < info.mat.alpha) {
+				float3 L;
+				float pdf;
+				float3 bsdf = Disney::DisneySample(info, ray.d * -1.f, info.normal, L, pdf, state, ray.o);
+				inside = info.isInside;
 
-			float3 L;
-			float pdf;
-			float3 bsdf = Disney::DisneySample(info, ray.d * -1.0, info.normal, L, pdf, state, ray.o);
-			inside = info.isInside;
+				ray.d = L;
 
-			ray.d = L;
+				result += getN(info.mat.emissive, channel) * rayColor;
 
-			result += getN(info.mat.emissive, channel) * rayColor;
-
-			if (pdf > 0.f) rayColor *= getN(bsdf / pdf, channel);
-			else return;
-
+				if (pdf > 0.f) rayColor *= getN(bsdf / pdf, channel);
+				else return;
+			}
 			ray.o += ray.d * 0.01f;
 
+			// i sould add MIS on skybox 
+			//result += getN(shadowRay(info, Ray(ray.o, params.sunDirection), ray, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, nullVal), channel) * rayColor;
+			
 			// russian roulette 
 			{
 				float p = rayColor;
@@ -381,12 +402,15 @@ namespace pathtracer {
 			//float4 test = tex2D<float4>(cudaMats[0].diffuseTexture, 0.f, 0.f);
 			//color = dot(ray.d, info.normal) < 0.f ? make_float3(0.f, 0.f, 1.f) : make_float3(1.f, 0.f, 0.f);
 			if (dot(info.normal, info.normal) == 0.) color = skyColor(ray.d, params);
-			//if(info.t > params.focalDistance)color = mix(color, make_float3(0.5, 1., 0.5), 0.7);
-			//color.x = info.mat.absorption.x;
-			//color.y = clamp(info.t / 50., 0.0f, 1.0f);
-			//color = info.mat.albedo;
-			//color.x = clamp(info.t / 5., 0., 1.);
-			//color = make_float3((float)debugV.x / 10.0f, (float)debugV.y / 10.0f, (float)debugV.z);
+
+			if (info.hit) {
+				float pdf;
+				color = Disney::DisneyEval(info, ray.d * -1.0f, info.normal, params.sunDirection, pdf);
+				if (pdf > 0.f) color /= pdf;
+
+				float3 point = ray.o + ray.d * info.t + info.normal * 0.01;
+				color *= shadowRay(info, Ray(point, params.sunDirection), ray, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, debugV);
+			} else color = skyColor(ray.d, params);
 		}
 		else {
 			int channel = int(randC(&state) * 3.);

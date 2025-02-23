@@ -245,6 +245,7 @@ namespace pathtracer {
         {
             pdf = 0.0;
             float3 f = make_float3(0.0f, 0.0f, 0.0f);
+            float eta = !info.isInside ? 1. / info.mat.ior : info.mat.ior;
 
             // anisotropy
             float aspect = rsqrtf(1.f - 0.9f * info.mat.anisotropic);
@@ -260,12 +261,12 @@ namespace pathtracer {
 
             // Specular and sheen color
             float3 specCol, sheenCol;
-            GetSpecColor(info.mat, !info.isInside ? 1. / info.mat.ior : info.mat.ior, specCol, sheenCol);
+            GetSpecColor(info.mat, eta, specCol, sheenCol);
 
             // Lobe weights
             float diffuseWt, specReflectWt, specRefractWt, clearcoatWt;
-            float approxFresnel = FresnelMix(info.mat, !info.isInside ? 1. / info.mat.ior : info.mat.ior, V.z);
-            GetLobeProbabilities(info.mat, !info.isInside ? 1. / info.mat.ior : info.mat.ior, specCol, approxFresnel, diffuseWt, specReflectWt, specRefractWt, clearcoatWt);
+            float approxFresnel = FresnelMix(info.mat, eta, V.z);
+            GetLobeProbabilities(info.mat, eta, specCol, approxFresnel, diffuseWt, specReflectWt, specRefractWt, clearcoatWt);
 
             // CDF for picking a lobe
             float cdf[4];
@@ -292,7 +293,7 @@ namespace pathtracer {
 
                 L = normalize(reflect(V * -1.0f, H));
 
-                f = EvalSpecReflection(info.mat, !info.isInside ? 1. / info.mat.ior : info.mat.ior, specCol, V, L, H, pdf);
+                f = EvalSpecReflection(info.mat, eta, specCol, V, L, H, pdf);
                 pdf *= specReflectWt;
             }
             else if (r3 < cdf[2]) // Specular Refraction Lobe
@@ -300,9 +301,9 @@ namespace pathtracer {
                 float3 H = SampleGGXVNDF(V, ax, ay, r1, r2);
                 H *= sign(H.z);
 
-                L = normalize(refract(V * -1.0f, H, !info.isInside ? 1. / info.mat.ior : info.mat.ior));
+                L = normalize(refract(V * -1.0f, H, eta));
 
-                f = EvalSpecRefraction(info.mat, !info.isInside ? 1. / info.mat.ior : info.mat.ior, V, L, H, pdf);
+                f = EvalSpecRefraction(info.mat, eta, V, L, H, pdf);
                 pdf = specRefractWt;
 
                 info.isInside = !info.isInside;
@@ -321,5 +322,67 @@ namespace pathtracer {
             L = ToWorld(T, B, N, L);
             return f * abs(dot(N, L));
         }
+
+        __device__ inline float3 DisneyEval(Hit info, float3 V, float3 N, float3 L, float& bsdfPdf)
+        {
+            float eta = !info.isInside ? 1. / info.mat.ior : info.mat.ior;
+            bsdfPdf = 0.0f;
+            float3 f = make_float3(0.f, 0.f, 0.f);
+
+            float3 T, B;
+            Onb(N, T, B);
+            V = ToLocal(T, B, N, V); // NDotL = L.z; NDotV = V.z; NDotH = H.z
+            L = ToLocal(T, B, N, L);
+
+            float3 H;
+            if (L.z > 0.0)
+                H = normalize(L + V);
+            else
+                H = normalize(L + V * eta);
+
+            H *= sign(H.z);
+
+            // Specular and sheen color
+            float3 specCol, sheenCol;
+            GetSpecColor(info.mat, eta, specCol, sheenCol);
+
+            // Lobe weights
+            float diffuseWt, specReflectWt, specRefractWt, clearcoatWt;
+            float fresnel = FresnelMix(info.mat, eta, dot(V, H));
+            GetLobeProbabilities(info.mat, eta, specCol, fresnel, diffuseWt, specReflectWt, specRefractWt, clearcoatWt);
+
+            float pdf;
+
+            // Diffuse
+            if (diffuseWt > 0.0 && L.z > 0.0)
+            {
+                f += EvalDiffuse(info.mat, sheenCol, V, L, H, pdf);
+                bsdfPdf += pdf * diffuseWt;
+            }
+
+            // Specular Reflection
+            if (specReflectWt > 0.0 && L.z > 0.0 && V.z > 0.0)
+            {
+                f += EvalSpecReflection(info.mat, eta, specCol, V, L, H, pdf);
+                bsdfPdf += pdf * specReflectWt;
+            }
+
+            // Specular Refraction
+            if (specRefractWt > 0.0 && L.z < 0.0)
+            {
+                f += EvalSpecRefraction(info.mat, eta, V, L, H, pdf);
+                bsdfPdf += pdf * specRefractWt;
+            }
+
+            // Clearcoat
+            if (clearcoatWt > 0.0 && L.z > 0.0 && V.z > 0.0)
+            {
+                f += EvalClearcoat(info.mat, V, L, H, pdf);
+                bsdfPdf += pdf * clearcoatWt;
+            }
+
+            return f * abs(L.z);
+        }
     }
+
 }

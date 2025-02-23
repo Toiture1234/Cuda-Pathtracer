@@ -1,0 +1,47 @@
+# Blender 4.3.2 MTL File: 'tree_small_02_1k.blend'
+# www.blender.org
+
+newmtl tree_small_02
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd textures/tree_small_02_diff_1k.jpg
+map_Pr textures/tree_small_02_rough_1k.exr
+map_Bump -bm 1.000000 textures/tree_small_02_nor_gl_1k.exr
+
+newmtl tree_small_02_branches
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd textures/tree_small_02_branch_diff_1k.png
+map_Pr textures/tree_small_02_branch_rough_1k.png
+map_Bump -bm 1.000000 textures/tree_small_02_branch_nor_gl_1k.png
+
+newmtl tree_small_02_leaves
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+Pr 0.400000
+Pm 0.000000
+map_Kd textures/tree_small_02_leaves_diff_1k.png
+map_Pr textures/tree_small_02_leaves_rough_1k.png
+map_Bump -bm 1.0 textures/tree_small_02_leaves_nor_gl_1k.png

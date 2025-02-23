@@ -88,6 +88,7 @@ namespace pathtracer {
 		float clearcoat;
 		float clearcoatRoughness;
 		float specTrans;
+		float alpha; // almost same as specTrans but no refraction and no change of index of refraction
 		float ior;
 		float3 extinction;
 
@@ -96,6 +97,9 @@ namespace pathtracer {
 
 		cudaTextureObject_t roughnessTexture = 0;
 		bool use_mapPr;
+
+		cudaTextureObject_t metallicTexture = 0;
+		bool use_mapPm;
 
 		cudaTextureObject_t normalTexture = 0;
 		bool use_mapNor;
@@ -115,7 +119,9 @@ namespace pathtracer {
 			ior = 1.5f;
 			useTexture = 0;
 			use_mapPr = 0;
+			use_mapPm = 0;
 			use_mapNor = 0;
+			alpha = 1.;
 		};
 	};
 	struct Hit {
