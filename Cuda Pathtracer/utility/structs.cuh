@@ -97,6 +97,9 @@ namespace pathtracer {
 		cudaTextureObject_t roughnessTexture = 0;
 		bool use_mapPr;
 
+		cudaTextureObject_t normalTexture = 0;
+		bool use_mapNor;
+
 		__device__ __host__ inline Material() {
 			baseColor = make_float3(0.f, 0.f, 0.f);
 			emissive = make_float3(0.f, 0.f, 0.f);
@@ -112,6 +115,7 @@ namespace pathtracer {
 			ior = 1.5f;
 			useTexture = 0;
 			use_mapPr = 0;
+			use_mapNor = 0;
 		};
 	};
 	struct Hit {

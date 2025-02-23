@@ -200,6 +200,15 @@ namespace pathtracer {
 					if (!genTexture(&current.matProperties.roughnessTexture, &cuArr, path)) return false;
 					current.matProperties.use_mapPr = true;
 				}
+				else if (readUntil(line, 0, ' ', &tokenEnd) == "map_Bump") {
+					readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
+					readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
+
+					std::string path = "assets/models/" + readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
+					cudaArray_t cuArr = 0;
+					if (!genTexture(&current.matProperties.normalTexture, &cuArr, path)) return false;
+					current.matProperties.use_mapNor = true;
+				}
 			}
 			matList.push_back(current);
 

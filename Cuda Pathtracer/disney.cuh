@@ -137,17 +137,6 @@ namespace pathtracer {
 
 
         // Disney
-
-        __device__ inline float3 ToWorld(float3 X, float3 Y, float3 Z, float3 V)
-        {
-            return V.x * X + V.y * Y + V.z * Z;
-        }
-
-        __device__ inline float3 ToLocal(float3 X, float3 Y, float3 Z, float3 V)
-        {
-            return make_float3(dot(V, X), dot(V, Y), dot(V, Z));
-        }
-
         __device__ inline float FresnelMix(Material mat, float eta, float VDotH)
         {
             float metallicFresnel = SchlickFresnel(VDotH);

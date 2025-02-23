@@ -15,7 +15,7 @@ aniso 0.000000
 anisor 0.000000
 map_Kd textures/chess_set_board_diff_1k.png
 map_Pr textures/chess_set_board_rough_1k.png
-map_Bump -bm 1.000000 C:/Users/rsacc/Downloads/chess_set_1k.fbx/textures/chess_set_board_nor_gl_1k.png
+map_Bump -bm 1.000000 textures/chess_set_board_nor_gl_1k.png
 
 newmtl chess_set_pieces_black
 Ks 0.500000 0.500000 0.500000
@@ -31,7 +31,7 @@ aniso 0.000000
 anisor 0.000000
 map_Kd textures/chess_set_pieces_black_diff_1k.png
 map_Pr textures/chess_set_pieces_black_rough_1k.png
-map_Bump -bm 1.000000 C:/Users/rsacc/Downloads/chess_set_1k.fbx/textures/chess_set_pieces_black_nor_gl_1k.png
+map_Bump -bm 1.000000 textures/chess_set_pieces_black_nor_gl_1k.png
 
 newmtl chess_set_pieces_white
 Ks 0.500000 0.500000 0.500000
@@ -47,4 +47,4 @@ aniso 0.000000
 anisor 0.000000
 map_Kd textures/chess_set_pieces_white_diff_1k.png
 map_Pr textures/chess_set_pieces_white_rough_1k.png
-map_Bump -bm 1.000000 C:/Users/rsacc/Downloads/chess_set_1k.fbx/textures/chess_set_pieces_white_nor_gl_1k.png
+map_Bump -bm 1.000000 textures/chess_set_pieces_white_nor_gl_1k.png

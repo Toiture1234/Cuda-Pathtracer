@@ -126,75 +126,34 @@ namespace pathtracer {
 
 		float w = 1. - u - v;
 
-		if (mat.useTexture) {
-			float2 samplePos = tri.tA * w + tri.tB * u + tri.tC * v;
-			float4 read = tex2D<float4>(mat.diffuseTexture, samplePos.x, samplePos.y);
-			hit.mat.baseColor = make_float3(read.x, read.y, read.z);
-		}
-		if (mat.use_mapPr) {
-			float2 samplePos = tri.tA * w + tri.tB * u + tri.tC * v;
-			float4 read = tex2D<float4>(mat.roughnessTexture, samplePos.x, samplePos.y);
-			hit.mat.roughness = read.x;
-		}
-
 		//some shit to refine here
 		float3 normalCalc = normalize(cross(edge1, edge2));
 		float mult = -sign(dot(ray.d, normalCalc));
 		normalCalc *= mult;
 		float3 normalFile = normalize(tri.nA * w + tri.nB * u + tri.nC * v) * mult;
-		hit.normal = dot(normalFile, ray.d) < 0.f ? normalFile : normalCalc;
-		//hit.normal = normalCalc;
+		hit.normal = normalFile;
 
+		// it would be smarter to put this inside intersectBVH but i'm lazy now
+		float2 samplePos = tri.tA * w + tri.tB * u + tri.tC * v;
+		if (mat.useTexture) {
+			float4 read = tex2D<float4>(mat.diffuseTexture, samplePos.x, samplePos.y);
+			hit.mat.baseColor = make_float3(read.x, read.y, read.z);
+		}
+		if (mat.use_mapPr) {
+			float4 read = tex2D<float4>(mat.roughnessTexture, samplePos.x, samplePos.y);
+			hit.mat.roughness = read.x;
+		}
+		if (mat.use_mapNor) {
+			float3 T, B;
+			Onb(hit.normal, T, B);
+			float4 read = tex2D<float4>(mat.normalTexture, samplePos.x, samplePos.y);
+			hit.normal = ToWorld(T, B, hit.normal, make_float3(read.x * 2.f - 1.f, read.y * 2.f - 1.f, read.z * 2.f - 1.f));
+		}
+		//hit.normal = dot(hit.normal, ray.d) < 0.f ? hit.normal : normalCalc;
 		return true;
-
 	}
 
 	__device__ inline bool BVHIntersect(Hit& hit, Ray ray, int3& debug, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
-		/*
-		BVH_Node* node = &Nodes_dev[0], *stack[N];
-		// slow asf
-		//BVH_Node** stack = (BVH_Node**)malloc(64);
-		int stackPtr = 0;
-
-
-		// DONT WORK FUCKKKKK
-		if (boxIntersectF(hit.t, ray, node->aabbMin, node->aabbMax) < 1e30) {
-			while (1) {
-				//if (boxIntersectF(hit.t, ray, node->aabbMin, node->aabbMax) != 1e30) {
-				debug.x++;
-				if (node->triCount >= 1) {
-					for (int i = 0; i < node->triCount; i++) {
-						if (triangleIntersect(hit, ray, dev_TRI[dev_ABC[i + node->firstTriIdx]], mat)) {
-							debug.y++;
-						}
-					}
-
-					if (stackPtr == 0) break; else node = stack[--stackPtr];
-					continue;
-				}
-				BVH_Node* child1 = &Nodes_dev[node->leftNode];
-				BVH_Node* child2 = &Nodes_dev[node->leftNode + 1];
-				float dist1 = boxIntersectF(hit.t, ray, child1->aabbMin, child1->aabbMax);
-				float dist2 = boxIntersectF(hit.t, ray, child2->aabbMin, child2->aabbMax);
-				if (dist1 > dist2) {
-					float d = dist1; dist1 = dist2; dist2 = d;
-					BVH_Node* c = child1; child1 = child2; child2 = c;
-				}
-				if (dist1 == 1e30) {
-					if (stackPtr == 0) break;
-					else node = stack[--stackPtr];
-				}
-				else {
-
-					node = child1;
-					if (dist2 != 1e30) {
-						stack[stackPtr++] = child2;
-					}
-				}
-			}
-		}
-		*/
-
 
 		//BVH_Node stack[10];
 		int stack[10];
@@ -215,23 +174,10 @@ namespace pathtracer {
 				if (node.triCount > 0) { // leaf node
 					for (int i = 0; i < node.triCount; i++) { // leaf node
 						triangleIntersect(hit, ray, cudaTriList[cudaTriIndex[i + node.leftFirst]], cudaMats[cudaTriList[cudaTriIndex[i + node.leftFirst]].matIndex]);
-						/*float4 curr = triangleIntersect_noMat(ray, dev_TRI[dev_ABC[i + node.firstTriIdx]]);
-
-						if(curr.w > 0.) {
-							minMax = make_float2(fmaxf(minMax.x, dst), fminf(minMax.y, dst));
-							if (curr.w < dst) {
-								dst = curr.w;
-								normal = make_float3(curr.x, curr.y, curr.z);
-								hasIntersected = true;
-							}
-						}*/
 					}
 					debug.z++;
 				}
 				else {
-					//stack[stackIdx++] = Nodes_dev[node.leftNode];
-					//stack[stackIdx++] = Nodes_dev[node.leftNode + 1];
-
 					BVH_Node childLeft = cudaNodes[node.leftFirst];
 					BVH_Node childRight = cudaNodes[node.leftFirst + 1];
 
@@ -239,12 +185,6 @@ namespace pathtracer {
 					float dstRight = boxIntersectF(hit.t, ray, childRight.aabbMin, childRight.aabbMax, invDir);
 					int left = node.leftFirst, right = node.leftFirst + 1;
 
-					/*if (dstLeft > dstRight) {
-						int c = right, right = left, left = c;
-						float cf = dstRight, dstRight = dstLeft, dstLeft = cf;
-					}
-					if (dstLeft < hit.t) stack[stackIdx++] = left;
-					if (dstRight < hit.t) stack[stackIdx++] = right;*/
 					if (dstLeft > dstRight) {
 						if (dstLeft < hit.t) stack[stackIdx++] = left;
 						if (dstRight < hit.t) stack[stackIdx++] = right;
@@ -258,34 +198,11 @@ namespace pathtracer {
 				debug.x++;
 			}
 		}
-
-		/*if (hasIntersected) {
-			bool inside = minMax.x <= minMax.y;
-			hit.normal = normal;
-			hit.t = dst;
-
-			hit.mat = mat;
-			hit.mat.absorption = inside ? mat.absorption : make_float3(0., 0., 0.);
-			//hit.mat.absorption = mat.absorption;
-			hit.mat.n = inside ? hit.mat.IOR : 1. / hit.mat.IOR;
-			hit.hit = true;
-		}*/
-
 	}
 	__device__ inline Hit map(Ray ray, int3 &debug, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
 		Hit hit;
-		//hit.mat = Material(make_float3(1., 1., 1.), make_float3(1., 1., 1.), 0.0f, 0.0f, 0.0f, make_float3(0., 0., 0.), 0.0f, 1.0f, make_float3(0., 0., 0.), make_float3(1.5f, 1.5f, 1.5f));
 		hit.mat = Material();
 		
-		/*sphereIntersect(hit, ray, make_float4(-4., 0.5, 0., 0.5), Material(make_float3(0.2, 0.8, 0.4), make_float3(1., 1., 1.), 0.4, 1., 1., make_float3(0., 0., 0.), 0., 1., make_float3(0., 0., 0.), 1.5));
-		sphereIntersect(hit, ray, make_float4(-2.5, 0.5, 0., 0.5), Material(make_float3(0.2, 0.8, 0.4), make_float3(1., 1., 1.), 0.4, 1., 0.95, make_float3(0., 0., 0.), 0., 1., make_float3(0., 0., 0.), 1.5));
-		sphereIntersect(hit, ray, make_float4(-1., 0.5, 0., 0.5), Material(make_float3(0.2, 0.8, 0.4), make_float3(1., 1., 1.), 0.4, 1., 0.9, make_float3(0., 0., 0.), 0., 1., make_float3(0., 0., 0.), 1.5));
-		sphereIntersect(hit, ray, make_float4(0.5, 0.5, 0., 0.5), Material(make_float3(0.2, 0.8, 0.4), make_float3(1., 1., 1.), 0.4, 1., 0.85, make_float3(0., 0., 0.), 0., 1., make_float3(0., 0., 0.), 1.5));
-		sphereIntersect(hit, ray, make_float4(2., 0.5, 0., 0.5), Material(make_float3(0.2, 0.8, 0.4), make_float3(1., 1., 1.), 0.4, 1., 0.8, make_float3(0., 0., 0.), 0., 1., make_float3(0., 0., 0.), 1.5));
-		sphereIntersect(hit, ray, make_float4(3.5, 0.5, 0., 0.5), Material(make_float3(0.2, 0.8, 0.4), make_float3(1., 1., 1.), 0.4, 1., 0.75, make_float3(0., 0., 0.), 0., 1., make_float3(0., 0., 0.), 1.5));
-
-
-		*/
 		//triangleIntersect(hit, ray, Triangle(make_float3(0., 0., 0.), make_float3(3., 0., 0.), make_float3(0., 0., 3.)), Material(make_float3(0.2, 0.3, 0.7), make_float3(1., 1., 1.), 0.02, 0.6, 0.98, make_float3(0., 0., 0.), 0., 1., make_float3(0., 0., 0.), 1.5));
 
 		//boxIntersect(hit, ray, make_float3(-100.0f, 270.0f, -100.0f), make_float3(100.0f, 290.f, 100.0f), Material(make_float3(1., 1., 1.), make_float3(1., 1., 1.), 0.0, 0., 0., make_float3(0.f, 0.f, 0.f), 0.f, 1.f, make_float3(15.f, 15.f, 15.f), make_float3(1.5f, 1.5f, 1.5f)));
@@ -442,7 +359,7 @@ namespace pathtracer {
 			if (pdf > 0.f) rayColor *= getN(bsdf / pdf, channel);
 			else return;
 
-			ray.o += ray.d * 1.f;
+			ray.o += ray.d * 0.01f;
 
 			// russian roulette 
 			{
