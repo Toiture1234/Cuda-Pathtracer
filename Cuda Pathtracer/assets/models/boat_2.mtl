@@ -1,0 +1,129 @@
+# Blender 4.3.2 MTL File: 'None'
+# www.blender.org
+
+newmtl ship_pinnace_aft
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd textures/boat/ship_pinnace_aft_diff_1k.png
+map_Pm textures/boat/ship_pinnace_aft_metal_1k.png
+map_Pr textures/boat/ship_pinnace_aft_rough_1k.png
+map_Bump -bm 1.000000 textures/boat/ship_pinnace_aft_nor_gl_1k.png
+
+newmtl ship_pinnace_deck
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd textures/boat/ship_pinnace_deck_diff_1k.png
+map_Pr textures/boat/ship_pinnace_deck_rough_1k.png
+map_Bump -bm 1.000000 textures/boat/ship_pinnace_deck_nor_gl_1k.png
+
+newmtl ship_pinnace_details
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd textures/boat/ship_pinnace_details_diff_1k.png
+map_Pm textures/boat/ship_pinnace_details_metal_1k.png
+map_Pr textures/boat/ship_pinnace_details_rough_1k.png
+map_Bump -bm 1.000000 textures/boat/ship_pinnace_details_nor_gl_1k.png
+
+newmtl ship_pinnace_hull
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd textures/boat/ship_pinnace_hull_diff_1k.png
+map_Pm textures/boat/ship_pinnace_hull_metal_1k.png
+map_Pr textures/boat/ship_pinnace_hull_rough_1k.png
+map_Bump -bm 1.000000 textures/boat/ship_pinnace_hull_nor_gl_1k.png
+
+newmtl ship_pinnace_interior
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd textures/boat/ship_pinnace_interior_diff_1k.png
+map_Pr textures/boat/ship_pinnace_interior_rough_1k.png
+map_Bump -bm 1.000000 textures/boat/ship_pinnace_interior_nor_gl_1k.png
+
+newmtl ship_pinnace_rigging
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd textures/boat/ship_pinnace_rigging_diff_1k.png
+map_Pm textures/boat/ship_pinnace_rigging_metal_1k.png
+map_Pr textures/boat/ship_pinnace_rigging_rough_1k.png
+map_Bump -bm 1.000000 textures/boat/ship_pinnace_rigging_nor_gl_1k.png
+
+newmtl ship_pinnace_sails
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd textures/boat/ship_pinnace_sails_diff_1k.png
+map_Pm textures/boat/ship_pinnace_sails_metal_1k.png
+map_Pr textures/boat/ship_pinnace_sails_rough_1k.png
+map_d textures/boat/ship_pinnace_sails_alpha_1k.png
+map_Bump -bm 1.000000 textures/boat/ship_pinnace_sails_nor_gl_1k.png
+
+newmtl water
+Kd 0.100000 0.100000 0.100000
+Ks 0.366667 0.366667 0.366667
+Ke 0.000000 0.000000 0.000000
+Ni 1.330000
+d 1.000000
+illum 3
+Pr 0.000000
+Pm 0.500000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000

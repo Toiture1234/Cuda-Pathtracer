@@ -56,6 +56,7 @@ namespace pathtracer {
 		float3 rayOrigin;
 		float3 rayDirectionZ;
 		float3 cameraAngle;
+		float cameraSpeed;
 
 		float3 sunDirection;
 

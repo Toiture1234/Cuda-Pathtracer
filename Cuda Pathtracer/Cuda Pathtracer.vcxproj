@@ -162,6 +162,10 @@
     <Image Include="icon1.ico" />
     <Image Include="icon2.ico" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="assets\shaders\antialiasing.glsl" />
+    <None Include="assets\shaders\vertex.glsl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.6.targets" />

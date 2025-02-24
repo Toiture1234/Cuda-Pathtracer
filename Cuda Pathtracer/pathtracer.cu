@@ -404,12 +404,15 @@ namespace pathtracer {
 			if (dot(info.normal, info.normal) == 0.) color = skyColor(ray.d, params);
 
 			if (info.hit) {
-				float pdf;
-				color = Disney::DisneyEval(info, ray.d * -1.0f, info.normal, params.sunDirection, pdf);
+				/*float pdf;
+				color = Disney::DisneyEval(info, ray.d * -1.0f, info.normal, params.sunDirection, pdf) * PI;
 				if (pdf > 0.f) color /= pdf;
 
 				float3 point = ray.o + ray.d * info.t + info.normal * 0.01;
 				color *= shadowRay(info, Ray(point, params.sunDirection), ray, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, debugV);
+				color = color * 0.5f + 0.5f;*/
+				float NoV = fmaxf(dot(ray.d * -1.0, info.normal), 0.f);
+				color = make_float3(NoV, NoV, NoV);
 			} else color = skyColor(ray.d, params);
 		}
 		else {
@@ -457,11 +460,12 @@ namespace pathtracer {
 		float3 vv = normalize(cross(uu, ww));
 		float3 rayDirection = normalize(uu * uvCam.x + vv * uvCam.y + ww * fov);
 
-		/*if (params.isRendering) {
-			float3 target = params.rayOrigin + rayDirection * params.focalDistance;
+		if (params.DOF_strenght > 0.f) {
+			float RdoT = dot(ww, rayDirection);
+			float3 target = params.rayOrigin + rayDirection * params.focalDistance / RdoT;
 			params.rayOrigin += generateUniformSample(rand_state) * params.DOF_strenght;
 			rayDirection = normalize(target - params.rayOrigin);
-		}*/
+		}
 		float3 color0 = max3(pixelColor(params, Ray(params.rayOrigin, rayDirection), rand_state, cudaTriList, cudaTriIndex, cudaNodes, cudaMats), make_float3(0.f,0.f,0.f));
 
 		__syncthreads();

@@ -79,4 +79,8 @@
       <Filter>Fichiers de ressources</Filter>
     </Image>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="assets\shaders\antialiasing.glsl" />
+    <None Include="assets\shaders\vertex.glsl" />
+  </ItemGroup>
 </Project>

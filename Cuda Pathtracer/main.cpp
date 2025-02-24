@@ -20,7 +20,7 @@ void fillDisplay(uint8_t* display_buff) {
 }
 void handleKey(float deltaTime, pathtracer::kernelParams& params, sf::RenderWindow* window) {
     if (!params.isRendering) {
-        float cameraSpeed = 360.f * 2.f;
+        float cameraSpeed = params.cameraSpeed;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Z)) {
             //params.rayOrigin.z -= 1. * deltaTime;
             params.frameIndex = 0;
@@ -63,7 +63,7 @@ void handleKey(float deltaTime, pathtracer::kernelParams& params, sf::RenderWind
         sf::Vector2f mousePosition = window->mapPixelToCoords(sf::Mouse::getPosition(*window));
         float angleX = (mousePosition.x - params.windowSize.x * 0.5) / 180.;
         float angleY = (params.windowSize.y * 0.5 - mousePosition.y) / 180.;
-        if(sf::Mouse::isButtonPressed(sf::Mouse::Right))
+        if(sf::Mouse::isButtonPressed(sf::Mouse::Middle))
             params.cameraAngle = make_float3(angleX, angleY, 0.);
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Multiply)) {
@@ -140,6 +140,7 @@ int main()
     params.rayDirectionZ = make_float3(0., 0., -1.);
     params.cameraAngle = make_float3(0., 0., 0.);
     params.rayOrigin = make_float3(0., 1.5, 5.);
+    params.cameraSpeed = 120.f;
     params.focalDistance = 200.f;
     params.DOF_strenght = 5.f;
     params.frameIndex = 0;
@@ -150,10 +151,24 @@ int main()
     params.sunDirection = pathtracer::normalize(make_float3(1., 0.7, -1.));
 
     cudaArray_t cubeMatData = 0;
-    if (!pathtracer::genTextureFromHDR(&params.cubeMap, &cubeMatData, "assets/cubemaps/kloofendal_48d_partly_cloudy_puresky_2k.hdr")) {
+    if (!pathtracer::genTextureFromHDR(&params.cubeMap, &cubeMatData, "assets/cubemaps/sunset_noSun.hdr")) {
         std::cout << "Failed to load hdr !\n";
         exit(1);
     }
+
+    // buttons handler
+    pathtracer::Buttons::button_slider cameraSpeed({ 0.f,0.f }, { 200.f, 50.f });
+    cameraSpeed.setRef(&params.cameraSpeed, 120.f, 1440.f);
+    pathtracer::Buttons::button_slider dofStrenght({ 0.f,50.f }, { 200.f,50.f });
+    dofStrenght.setRef(&params.DOF_strenght, 0.f, 20.f);
+    pathtracer::Buttons::button_slider focalDist({ 0.f,100.f }, { 200.f,50.f });
+    focalDist.setRef(&params.focalDistance, 0.f, 1000.f);
+
+    //shaders handler
+    sf::Shader antialias;
+    antialias.loadFromFile("assets/shaders/vertex.glsl", "assets/shaders/antialiasing.glsl");
+    antialias.setUniform("texture", sf::Shader::CurrentTexture);
+    antialias.setUniform("resolution", sf::Vector2f(IMG_SIZE_X, IMG_SIZE_Y));
 
     // scene creation
     initScene(params);
@@ -211,6 +226,10 @@ int main()
         drawer.setTexture(display_texture);
         window.draw(drawer);
         
+        cameraSpeed.update(&window);
+        dofStrenght.update(&window);
+        focalDist.update(&window);
+
         // delta time calculations
         deltaTime = mainClock.restart().asSeconds();
         totalTime += deltaTime;
