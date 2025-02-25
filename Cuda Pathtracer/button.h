@@ -76,9 +76,6 @@ namespace pathtracer {
 			sf::RectangleShape rectangle;
 			sf::RectangleShape inside_rect;
 			sf::CircleShape slider;
-			sf::Color color0;
-			sf::Color color1;
-			sf::Color color2;
 
 			float minValue, maxValue;
 			float* ref;
@@ -87,8 +84,9 @@ namespace pathtracer {
 			button_slider() {
 				rectangle = sf::RectangleShape({ 0.f,0.f });
 				rectangle.setSize({ 0.f,0.f });
-				color0 = color1 = color2 = sf::Color::Black;
-				rectangle.setFillColor(color0);
+				rectangle.setFillColor({ 88,109,120 });
+				inside_rect.setFillColor({ 58,71,79 });
+				slider.setFillColor({ 142,159,169 });
 				slider = sf::CircleShape(0.f);
 				ref = nullptr;
 				minValue = maxValue = 0.f;
@@ -97,14 +95,14 @@ namespace pathtracer {
 			button_slider(sf::Vector2f pos, sf::Vector2f size) {
 				rectangle.setPosition(pos);
 				rectangle.setSize(size);
-				inside_rect.setPosition(sf::Vector2f(pos.x + size.x * 0.1f, pos.y + size.y * 0.25f));
-				inside_rect.setSize(sf::Vector2f(size.x * 0.8f, size.y * 0.5f));
-				slider.setPosition(sf::Vector2f(pos.x + size.x * 0.1f, pos.y + size.y * 0.25f));
-				slider.setRadius(size.y * 0.5f);
-
-				rectangle.setFillColor(sf::Color::Black);
-				inside_rect.setFillColor(sf::Color::Green);
-				slider.setFillColor(sf::Color::White);
+				inside_rect.setPosition({ pos.x + size.x * 0.1f, pos.y + size.y * 0.4f });
+				inside_rect.setSize({ size.x * 0.8f, size.y * 0.2f });
+				slider.setRadius(size.y * 0.3f);
+				slider.setPosition({ pos.x + size.x * 0.1f, pos.y + size.y * 0.2f}); // inited to 0
+				
+				rectangle.setFillColor({ 88,109,120 });
+				inside_rect.setFillColor({ 58,71,79 });
+				slider.setFillColor({ 142,159,169 });
 				ref = nullptr;
 				minValue = maxValue = 0.f;
 				delta = 0.f;
@@ -114,6 +112,16 @@ namespace pathtracer {
 				ref = ref0, minValue = mi, maxValue = ma;
 				*ref = clamp(*ref, mi, ma);
 				delta = ma - mi;
+
+				// max position is given by pos.x + size.x - size.y * 0.6f - size.x * 0.1f
+				// = pos.x + size.x(1.f - 0.1f) - size.y * 0.6f
+				// = pos.x + size.x * 0.9 - size.y * 0.6f
+				// so delta in coord is : pos.x + size.x * 0.9f - size.y * 0.6f - pos.x - size.x * 0.1f
+				// = size.x * 0.8f - size.y * 0.6f
+				// final position is given by : pos.x + size.x * 0.1f + (size.x * 0.8f - size.y * 0.6f) * p , where p is a parameter from 0 to 1
+				sf::Vector2f size = rectangle.getSize();
+				sf::Vector2f pos = rectangle.getPosition();
+				slider.setPosition({ pos.x + size.x * 0.1f + (size.x * 0.8f - size.y * 0.6f) * ((*ref - minValue) / delta), slider.getPosition().y});
 			}
 
 			inline void update(sf::RenderWindow* window) {
@@ -122,11 +130,18 @@ namespace pathtracer {
 				window->draw(rectangle);
 				window->draw(inside_rect);
 				window->draw(slider);
-				if (mousePos.x > rectangle.getPosition().x && mousePos.x < rectangle.getPosition().x + rectangle.getSize().x && mousePos.y > rectangle.getPosition().y && mousePos.y < rectangle.getPosition().y + rectangle.getSize().y && sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-					float xCoord = (float)(mousePos.x - inside_rect.getPosition().x) / (float)inside_rect.getSize().x;
+				if (mousePos.x > rectangle.getPosition().x && 
+					mousePos.x < rectangle.getPosition().x + rectangle.getSize().x && 
+					mousePos.y > rectangle.getPosition().y && 
+					mousePos.y < rectangle.getPosition().y + rectangle.getSize().y && 
+					sf::Mouse::isButtonPressed(sf::Mouse::Left)) 
+				{
+					sf::Vector2f size = rectangle.getSize();
+					sf::Vector2f pos = rectangle.getPosition();
+					float xCoord = (float)(mousePos.x - pos.x - size.x * 0.1f - size.y * 0.3f) / (float)(size.x * 0.8f - size.y * 0.6f);
 					xCoord = clamp(xCoord, 0.f, 1.f);
 					*ref = minValue + xCoord * delta;
-					slider.setPosition({ mousePos.x, slider.getPosition().y });
+					slider.setPosition({ pos.x + size.x * 0.1f + (size.x * 0.8f - size.y * 0.6f) * ((*ref - minValue) / delta), slider.getPosition().y });
 				}
 			}
 		};

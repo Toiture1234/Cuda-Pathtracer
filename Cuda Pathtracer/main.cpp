@@ -128,10 +128,10 @@ void initScene(pathtracer::kernelParams &params) {
 
 int main()
 {
-    sf::RenderWindow window(sf::VideoMode({ IMG_SIZE_X, IMG_SIZE_Y }), "CUDA pathtracer");
+    sf::RenderWindow window(sf::VideoMode({ IMG_SIZE_X, IMG_SIZE_Y }), "CUDA pathtracer, v0.9");
 
     srand(time(NULL));
-    std::cout << "---- Pathtracer made by Toiture, v0.0 ----\n";
+    std::cout << "---- Pathtracer made by Toiture, v0.9 ----\n";
 
     // kernel params
     pathtracer::kernelParams params;
@@ -140,9 +140,9 @@ int main()
     params.rayDirectionZ = make_float3(0., 0., -1.);
     params.cameraAngle = make_float3(0., 0., 0.);
     params.rayOrigin = make_float3(0., 1.5, 5.);
-    params.cameraSpeed = 120.f;
+    params.cameraSpeed = 720.f;
     params.focalDistance = 200.f;
-    params.DOF_strenght = 5.f;
+    params.DOF_strenght = 0.f;
     params.frameIndex = 0;
     params.pixelBuffer = new uint8_t[IMG_SIZE_X * IMG_SIZE_Y * 4];
     params.isRendering = false;

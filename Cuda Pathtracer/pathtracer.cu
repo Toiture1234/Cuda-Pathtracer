@@ -124,7 +124,7 @@ namespace pathtracer {
 		hit.mat = mat;
 		hit.hit = true;
 
-		float w = 1. - u - v;
+		float w = 1.f - u - v;
 
 		//some shit to refine here
 		float3 normalCalc = normalize(cross(edge1, edge2));
@@ -154,9 +154,7 @@ namespace pathtracer {
 			float4 read = tex2D<float4>(mat.normalTexture, samplePos.x, samplePos.y);
 			hit.normal = ToWorld(T, B, hit.normal, make_float3(read.x * 2.f - 1.f, read.y * 2.f - 1.f, read.z * 2.f - 1.f));
 		}
-		//hit.normal = dot(hit.normal, ray.d) < 0.f ? hit.normal : normalCalc;
-		//hit.normal *= sign(dot(hit.normal, normalCalc));
-		hit.normal = normalize(mix(hit.normal, normalCalc, smoothstep(-0.02, 0.1, dot(hit.normal, ray.d))));
+		hit.normal = normalize(mix(normalCalc, hit.normal, smoothstep(0.f,0.4f, -dot(ray.d, hit.normal))));
 		return true;
 	}
 
@@ -165,11 +163,6 @@ namespace pathtracer {
 		int stack[10];
 		int stackIdx = 0;
 		stack[stackIdx++] = 0;
-
-		float dst = hit.t;
-		float3 normal = make_float3(0., 0., 0.);
-		bool hasIntersected = false;
-		float2 minMax = make_float2(-1, dst);
 
 		float3 invDir = 1. / ray.d;
 
@@ -220,18 +213,7 @@ namespace pathtracer {
 		Hit hit;
 		hit.mat = Material();
 		
-		//triangleIntersect(hit, ray, Triangle(make_float3(0., 0., 0.), make_float3(3., 0., 0.), make_float3(0., 0., 3.)), Material(make_float3(0.2, 0.3, 0.7), make_float3(1., 1., 1.), 0.02, 0.6, 0.98, make_float3(0., 0., 0.), 0., 1., make_float3(0., 0., 0.), 1.5));
-
-		//boxIntersect(hit, ray, make_float3(-100.0f, 270.0f, -100.0f), make_float3(100.0f, 290.f, 100.0f), Material(make_float3(1., 1., 1.), make_float3(1., 1., 1.), 0.0, 0., 0., make_float3(0.f, 0.f, 0.f), 0.f, 1.f, make_float3(15.f, 15.f, 15.f), make_float3(1.5f, 1.5f, 1.5f)));
-
-		//boxIntersect(hit, ray, make_float3(-400.f, 100.f, 0.f), make_float3(-270.f, 200.f, 230.f), Material(make_float3(1., 1., 1.), make_float3(1., 1., 1.), 0.0, 0., 0., make_float3(0.f, 0.f, 0.f), 0.f, 1.f, make_float3(15.f, 15.f, 15.f), make_float3(1.5f, 1.5f, 1.5f)));
-		//boxIntersect(hit, ray, make_float3(-100.0f, 270.0f, -100.0f), make_float3(100.0f, 290.f, 100.0f), Material(make_float3(1., 1., 1.), make_float3(1., 1., 1.), 0.0, 0., 0., make_float3(0.f, 0.f, 0.f), 0.f, 1.f, make_float3(15.f, 15.f, 15.f), make_float3(1.5f, 1.5f, 1.5f)));
-		//sphereIntersect(hit, ray, make_float4(18.3, 8., 11.7, 0.75), Material(make_float3(1., 1., 1.), make_float3(1., 1., 1.), 0., 0., 0.9, make_float3(0., 0., 0.), 0., 1., make_float3(10., 2.8, 0.039) * 2., 1.5));
-		//sphereIntersect(hit, ray, make_float4(2.6, 15.1, 20.3, 0.75), Material(make_float3(1., 1., 1.), make_float3(1., 1., 1.), 0., 0., 0.9, make_float3(0., 0., 0.), 0., 1., make_float3(10., 2.8, 0.039) * 2., 1.5));
-		
-		//planeIntersect(hit, ray, make_float3(0., 1., 0.), -2., Material(make_float3(0.1, 0.1, 0.2), make_float3(1., 1., 1.), 0.0, 0., 0., make_float3(0.f, 0.f, 0.f), 0.f, 1.f, make_float3(0.f, 0.f, 0.f), make_float3(1.5f, 1.5f, 1.5f)));
 		BVHIntersect(hit, ray, debug, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, 0);
-		//__syncthreads();
 
 		/*Material sphMat;
 		sphMat.metallic = 0.;
@@ -398,10 +380,10 @@ namespace pathtracer {
 		if (!params.isRendering) {
 			int3 debugV = make_int3(0, 0, 0);
 			Hit info = map(ray, debugV, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
-			color = info.normal * 0.5 + 0.5;
+			//color = info.normal * 0.5 + 0.5;
 			//float4 test = tex2D<float4>(cudaMats[0].diffuseTexture, 0.f, 0.f);
 			//color = dot(ray.d, info.normal) < 0.f ? make_float3(0.f, 0.f, 1.f) : make_float3(1.f, 0.f, 0.f);
-			if (dot(info.normal, info.normal) == 0.) color = skyColor(ray.d, params);
+			//if (dot(info.normal, info.normal) == 0.) color = skyColor(ray.d, params);
 
 			if (info.hit) {
 				/*float pdf;
@@ -412,8 +394,10 @@ namespace pathtracer {
 				color *= shadowRay(info, Ray(point, params.sunDirection), ray, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, debugV);
 				color = color * 0.5f + 0.5f;*/
 				float NoV = fmaxf(dot(ray.d * -1.0, info.normal), 0.f);
-				color = make_float3(NoV, NoV, NoV);
+				color = make_float3(NoV, NoV, NoV) * info.mat.baseColor;
 			} else color = skyColor(ray.d, params);
+			//color.x = (float)debugV.z * 0.5f;
+			//color.z = (float)debugV.x * 0.05f;
 		}
 		else {
 			int channel = int(randC(&state) * 3.);
