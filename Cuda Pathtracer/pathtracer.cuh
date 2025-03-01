@@ -34,6 +34,7 @@ using namespace std;
 #include "utility/constants.cuh"
 #include "utility/structs.cuh"
 #include "utility/cuda_utility.cuh"
+#include "utility/tonemapping.cuh"
 #include "disney.cuh"
 
 #include "utility/intersectors.cuh"
@@ -43,7 +44,6 @@ using namespace std;
 #include "image_loader.h"
 #include "file_reader.h"
 #include "BVH/BVH_builder.cpp"
-
 
 #define SCENE 0
 
@@ -62,6 +62,7 @@ namespace pathtracer {
 
 		float focalDistance;
 		float DOF_strenght;
+		float fov;
 
 		int frameIndex;
 

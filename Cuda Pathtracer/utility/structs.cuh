@@ -101,6 +101,9 @@ namespace pathtracer {
 		cudaTextureObject_t metallicTexture = 0;
 		bool use_mapPm;
 
+		cudaTextureObject_t emissiveTexture = 0;
+		bool use_mapKe;
+
 		cudaTextureObject_t normalTexture = 0;
 		bool use_mapNor;
 

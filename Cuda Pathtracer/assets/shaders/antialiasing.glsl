@@ -1,6 +1,12 @@
 uniform sampler2D texture;
 uniform vec2 resolution;
 
+// color transformations
+uniform vec3 multiplier;
+uniform float gamma;
+uniform float contrast;
+uniform float saturation;
+
 void main()
 {
     // lookup the pixel in the texture

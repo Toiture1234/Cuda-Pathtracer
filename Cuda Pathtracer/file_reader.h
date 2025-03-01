@@ -1,11 +1,13 @@
 #pragma once
 
+
 namespace pathtracer {
-	
+
 	//static float3* verticies_host;
 	static Triangle* allTriangles;
 	static int* TriangleIdx;
 	static Material* materialList;
+	//static const std::string SUB_NAME = "";
 
 	struct readableMaterial {
 		std::string name;
@@ -26,10 +28,10 @@ namespace pathtracer {
 		return output;
 	}
 
-	inline bool readMtlFile(int* numOfMaterials, std::string path) { // perform memory allocations inside this, sounds risky
+	inline bool readMtlFile(int* numOfMaterials, std::string path, std::string subDir) { // perform memory allocations inside this, sounds risky
 		std::vector<readableMaterial> matList;
 
-		std::string pathC = "assets/models/" + path;
+		std::string pathC = "assets/models/" + subDir + path;
 		ifstream mtlFile(pathC);
 		string line;
 
@@ -110,30 +112,39 @@ namespace pathtracer {
 					current.matProperties.anisotropic = value;
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "map_Kd") {
-					std::string path = "assets/models/" + readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
+					std::string path = "assets/models/" + subDir + readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
 					
 					cudaArray_t cuArr = 0;
 					current.matProperties.useTexture = genTexture(&current.matProperties.diffuseTexture, &cuArr, path);
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "map_Pr") {
-					std::string path = "assets/models/" + readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
+					std::string path = "assets/models/" + subDir + readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
 
 					cudaArray_t cuArr = 0;
 					current.matProperties.use_mapPr = genTexture_float(&current.matProperties.roughnessTexture, &cuArr, path);
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "map_Pm") {
-					std::string path = "assets/models/" + readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
+					std::string path = "assets/models/" + subDir + readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
 
 					cudaArray_t cuArr = 0;
 					current.matProperties.use_mapPm = genTexture_float(&current.matProperties.metallicTexture, &cuArr, path);
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "map_Bump") {
-					readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
-					readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
-
-					std::string path = "assets/models/" + readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
+					/*std::string nextToken = readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
+					std::string tmpPath = nextToken;
+					if(nextToken == "-bm")
+						readUntil(line, tokenEnd + 1, ' ', &tokenEnd);*/
+					std::string tmpPath = readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
+					
+					std::string path = "assets/models/" + subDir + tmpPath;
 					cudaArray_t cuArr = 0;
 					current.matProperties.use_mapNor = genTexture(&current.matProperties.normalTexture, &cuArr, path);
+				}
+				else if (readUntil(line, 0, ' ', &tokenEnd) == "map_Ke") {
+					std::string path = "assets/models/" + subDir + readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
+
+					cudaArray_t cuArr = 0;
+					current.matProperties.use_mapKe = genTexture_float(&current.matProperties.emissiveTexture, &cuArr, path);
 				}
 			}
 			matList.push_back(current);
@@ -172,7 +183,7 @@ namespace pathtracer {
 		return 0;
 	}
 
-	inline bool readObjFile(const char* path, int& nbTri, int& nbMat) {
+	inline bool readObjFile(const char* path, const char* subDir, int& nbTri, int& nbMat) {
 		float size = 100.f;
 		float3 position = make_float3(0.f, 0.f, 0.f);
 
@@ -319,7 +330,7 @@ namespace pathtracer {
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "mtllib") { // consider this being before usemtl
 					std::string mtlName = readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
-					if (!readMtlFile(&matNb, mtlName)) return false;
+					if (!readMtlFile(&matNb, mtlName, subDir)) return false;
 					std::cout << matNb << "\n";
 					nbMat = matNb;
 				}

@@ -60,6 +60,10 @@
     <ClInclude Include="image_loader.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
+    <ClInclude Include="gui_handler.h">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </ClInclude>
+    <ClInclude Include="utility\tonemapping.cuh" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="pathtracer.cu">

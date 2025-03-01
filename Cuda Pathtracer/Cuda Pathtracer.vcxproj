@@ -144,6 +144,7 @@
     <ClInclude Include="BVH\BVH_builder.cpp" />
     <ClInclude Include="disney.cuh" />
     <ClInclude Include="file_reader.h" />
+    <ClInclude Include="gui_handler.h" />
     <ClInclude Include="hdr_loader.h" />
     <ClInclude Include="image_loader.h" />
     <ClInclude Include="resource.h" />
@@ -154,6 +155,7 @@
     <ClInclude Include="pathtracer.cuh" />
     <ClInclude Include="utility\intersectors.cuh" />
     <ClInclude Include="utility\structs.cuh" />
+    <ClInclude Include="utility\tonemapping.cuh" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Cuda Pathtracer.rc" />

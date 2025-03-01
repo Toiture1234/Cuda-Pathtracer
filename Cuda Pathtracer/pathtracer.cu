@@ -148,13 +148,18 @@ namespace pathtracer {
 			float read = tex2D<float>(mat.metallicTexture, samplePos.x, samplePos.y);
 			hit.mat.metallic = read;
 		}
+		if (mat.use_mapKe) {
+			float read = tex2D<float>(mat.emissiveTexture, samplePos.x, samplePos.y);
+			hit.mat.emissive = make_float3(read, read, read);
+		}
 		if (mat.use_mapNor) {
 			float3 T, B;
 			Onb(hit.normal, T, B);
 			float4 read = tex2D<float4>(mat.normalTexture, samplePos.x, samplePos.y);
 			hit.normal = ToWorld(T, B, hit.normal, make_float3(read.x * 2.f - 1.f, read.y * 2.f - 1.f, read.z * 2.f - 1.f));
 		}
-		hit.normal = normalize(mix(normalCalc, hit.normal, smoothstep(0.f,0.4f, -dot(ray.d, hit.normal))));
+		//hit.normal = normalize(mix(normalCalc, hit.normal, smoothstep(0.f,0.3f, -dot(ray.d, hit.normal))));
+		hit.normal = refIfNeg(hit.normal, -1.0f * ray.d);
 		return true;
 	}
 
@@ -174,7 +179,7 @@ namespace pathtracer {
 					for (int i = 0; i < node.triCount; i++) { // leaf node
 						if (triangleIntersect(hit, ray, cudaTriList[cudaTriIndex[i + node.leftFirst]], cudaMats[cudaTriList[cudaTriIndex[i + node.leftFirst]].matIndex])) {
 							debug.z++;
-							if (sunRay) return true;
+							if (sunRay) return true; // this stops the process when doing shadowing because we don't care of what triangle we hit in this case
 						}
 					}
 				}
@@ -206,9 +211,15 @@ namespace pathtracer {
 			return make_float3(0.f, 0.f, 0.f);
 		}
 		float pdf;
-		float3 value = Disney::DisneyEval(info, ray.d * 1.0f, info.normal, sunRay.d, pdf);
+		float3 value = Disney::DisneyEval_2(info, ray.d * 1.0f, info.normal, sunRay.d, pdf);
 		return value;
 	}
+	__device__ inline float3 skyBoxSample(float3 direction, kernelParams params) {
+		const float4 texVal = tex2D<float4>(params.cubeMap,
+			atan2f(direction.z, direction.x) * (float)(0.5f / PI) + 0.5f, 1.f - (direction.y * 0.5f + 0.5f));
+		return make_float3(texVal.x, texVal.y, texVal.z);
+	}
+	
 	__device__ inline Hit map(Ray ray, int3 &debug, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
 		Hit hit;
 		hit.mat = Material();
@@ -217,23 +228,48 @@ namespace pathtracer {
 
 		/*Material sphMat;
 		sphMat.metallic = 0.;
-		sphMat.baseColor = make_float3(1., 0.4, 0.6);
-		sphMat.roughness = 0.4;
-		sphMat.anisotropic = 0.;
+		sphMat.baseColor = make_float3(1., 1., 1.);
+		sphMat.roughness = 0.8;
+		sphMat.specTrans = 0.;
+		sphMat.clearcoat = 1.f;
+		sphMat.clearcoatRoughness = 0.01;
 		sphereIntersect(hit, ray, make_float4(-400., 50., 0., 50.), sphMat);
-		sphMat.anisotropic = 0.2;
+		sphMat.clearcoatRoughness = 0.1;
 		sphereIntersect(hit, ray, make_float4(-250., 50., 0., 50.), sphMat);
-		sphMat.anisotropic = 0.4;
+		sphMat.clearcoatRoughness = 0.2;
 		sphereIntersect(hit, ray, make_float4(-100., 50., 0., 50.), sphMat);
-		sphMat.anisotropic = 0.6;
+		sphMat.clearcoatRoughness = 0.4;
 		sphereIntersect(hit, ray, make_float4(50., 50., 0., 50.), sphMat);
-		sphMat.anisotropic = 0.8;
+		sphMat.clearcoatRoughness = 0.6;
 		sphereIntersect(hit, ray, make_float4(200., 50., 0., 50.), sphMat);
-		sphMat.anisotropic = 0.99;
+		sphMat.clearcoatRoughness = 1.;
 		sphereIntersect(hit, ray, make_float4(350., 50., 0., 50.), sphMat);
 		*/
-		
+
 		return hit;
+	}
+	__device__ inline float3 sampleSkyboxOnBounce(Hit info,
+												Ray ray,
+												Triangle* cudaTriList,
+												int* cudaTriIndex,
+												BVH_Node* cudaNodes,
+												Material* cudaMats,
+												int3& debug,
+												Rand_state& state,
+												kernelParams params) {
+		// generate a sample based on bsdf (for now)
+		float3 L;
+		float pdf;
+		float3 bsdf = Disney::DisneySample_2(info, ray.d * -1.f, info.normal, L, pdf, state);
+		float bsdf_pdf;
+
+		Hit info0 = map(Ray(ray.o, L), debug, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
+		if (info0.hit) return make_float3(0.f, 0.f, 0.f);
+
+		float3 bsdfEv = Disney::DisneyEval_2(info, ray.d * -1.0, info.normal, L, bsdf_pdf);
+		if (pdf > 0.f)
+			return skyBoxSample(L, params) * bsdfEv / pdf;
+		else return make_float3(0.f, 0.f, 0.f);
 	}
 	__device__ float HG(float g, float sundotrd) {
 		float gg = g * g;	return (1. - gg) / pow(1. + gg - 2. * g * sundotrd, 1.5);
@@ -271,22 +307,25 @@ namespace pathtracer {
 		//return skyGrad + smoothstep(1., 0.9, length(rayDir - params.sunDirection) / 0.25) * 50.;
 		//return skyGradient(rayDir, params);
 		//return make_float3(5.f, 5.f, 5.f);
-		const float4 texVal = tex2D<float4>(params.cubeMap,
+		/*const float4 texVal = tex2D<float4>(params.cubeMap,
 			atan2f(rayDir.z, rayDir.x) * (float)(0.5f / PI) + 0.5f, 1.f - (rayDir.y * 0.5f + 0.5f));
-		return make_float3(texVal.x, texVal.y, texVal.z);
+		return make_float3(texVal.x, texVal.y, texVal.z);*/
+		return skyBoxSample(rayDir, params);
 	}
-	__device__ inline void pathtrace(float& result, kernelParams params, Ray ray, Rand_state& state, int channel, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
+	__device__ inline void pathtrace(float& result, kernelParams params, Ray ray, Rand_state& state, int channel, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats, float uvX) {
 		float rayColor = 1.0;
 
 		Hit info;
 		bool inside = false;
 		int3 nullVal = make_int3(0, 0, 0);
+		bool sampleSky = true;
+		float x0 = ray.d.x;
 		for (int i = 0; i < 50; i++) {
 			info = map(ray, nullVal, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
 			info.isInside = inside;
 
 			if (!info.hit) {
-				result += getN(skyColor(ray.d, params), channel) * rayColor;
+				result += getN(skyColor(ray.d, params), channel) * rayColor * sampleSky;
 				return;
 			}
 
@@ -349,21 +388,25 @@ namespace pathtracer {
 			if (rC < info.mat.alpha) {
 				float3 L;
 				float pdf;
-				float3 bsdf = Disney::DisneySample(info, ray.d * -1.f, info.normal, L, pdf, state, ray.o);
-				inside = info.isInside;
-
-				ray.d = L;
+				float3 bsdf = Disney::DisneySample_2(info, ray.d * -1.f, info.normal, L, pdf, state);
 
 				result += getN(info.mat.emissive, channel) * rayColor;
 
+				// disable it for now
+				/*if (uvX > 0.5) {
+					result += getN(sampleSkyboxOnBounce(info, Ray(ray.o + info.normal * 0.01f, ray.d), cudaTriList, cudaTriIndex, cudaNodes, cudaMats, nullVal, state, params), channel) * rayColor;
+
+					sampleSky = false; // this would be useful when sampling the skybox at each bounce
+				}*/
+
 				if (pdf > 0.f) rayColor *= getN(bsdf / pdf, channel);
 				else return;
+
+				inside = info.isInside;
+				ray.d = L;
 			}
 			ray.o += ray.d * 0.01f;
 
-			// i sould add MIS on skybox 
-			//result += getN(shadowRay(info, Ray(ray.o, params.sunDirection), ray, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, nullVal), channel) * rayColor;
-			
 			// russian roulette 
 			{
 				float p = rayColor;
@@ -375,7 +418,7 @@ namespace pathtracer {
 		}
 		return;
 	}
-	__device__ inline float3 pixelColor(kernelParams params, Ray ray, Rand_state& state, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
+	__device__ inline float3 pixelColor(kernelParams params, Ray ray, Rand_state& state, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats, float uvX) {
 		float3 color = make_float3(0., 0., 0.);
 		if (!params.isRendering) {
 			int3 debugV = make_int3(0, 0, 0);
@@ -386,15 +429,15 @@ namespace pathtracer {
 			//if (dot(info.normal, info.normal) == 0.) color = skyColor(ray.d, params);
 
 			if (info.hit) {
-				/*float pdf;
-				color = Disney::DisneyEval(info, ray.d * -1.0f, info.normal, params.sunDirection, pdf) * PI;
-				if (pdf > 0.f) color /= pdf;
+				//float pdf;
+				//color = Disney::DisneyEval_2(info, ray.d * -1.0f, info.normal, ray.d * -1.0f, pdf);
+				//if (pdf > 0.f) color /= pdf;
 
-				float3 point = ray.o + ray.d * info.t + info.normal * 0.01;
-				color *= shadowRay(info, Ray(point, params.sunDirection), ray, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, debugV);
-				color = color * 0.5f + 0.5f;*/
+				//float3 point = ray.o + ray.d * info.t + info.normal * 0.01;
+				//color *= shadowRay(info, Ray(point, params.sunDirection), ray, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, debugV);
+				//color = color * 0.5f + 0.5f;
 				float NoV = fmaxf(dot(ray.d * -1.0, info.normal), 0.f);
-				color = make_float3(NoV, NoV, NoV) * info.mat.baseColor;
+				color = NoV * info.mat.baseColor;
 			} else color = skyColor(ray.d, params);
 			//color.x = (float)debugV.z * 0.5f;
 			//color.z = (float)debugV.x * 0.05f;
@@ -404,21 +447,20 @@ namespace pathtracer {
 			switch (channel)
 			{
 			case 0:
-				pathtrace(color.x, params, ray, state, 0, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
+				pathtrace(color.x, params, ray, state, 0, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, uvX);
 				break;
 			case 1:
-				pathtrace(color.y, params, ray, state, 1, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
+				pathtrace(color.y, params, ray, state, 1, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, uvX);
 				break;
 			case 2:
-				pathtrace(color.z, params, ray, state, 2, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
+				pathtrace(color.z, params, ray, state, 2, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, uvX);
 				break;
 			}
 			//pathtrace(color.x, params, ray, state, 0);
 			//pathtrace(color.y, params, ray, state, 1);
 			//pathtrace(color.z, params, ray, state, 2);
-			color *= 3.;
+			color *= 3.f;
 		}
-
 		return color;
 	}
 	__global__ inline void renderPixel(kernelParams params, uint8_t* ptBuffer, float3* accumBuff, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
@@ -432,34 +474,35 @@ namespace pathtracer {
 		Rand_state rand_state;
 		curand_init(idx, 0, 4096 * params.frameIndex, &rand_state);
 
-		float2 uv = make_float2((float)x / params.windowSize.x, 1. - (float)y / params.windowSize.y);
-		float2 uvCam = uv - 0.5;
+		float2 uv = make_float2(((float)x + randC(&rand_state) * 2.0f - 1.f) / params.windowSize.x, 1.f - ((float)y + randC(&rand_state) * 2.0f - 1.f) / params.windowSize.y);
+		float2 uvCam = uv - 0.5f;
 		uvCam.x *= (float)params.windowSize.x / params.windowSize.y;
 
 		// rayDirection computations
-		float fov = 1.;
+		float fov = params.fov;
 		float3 cameraTarget = params.rayOrigin + make_float3(sin(params.cameraAngle.x) * cos(params.cameraAngle.y), sin(params.cameraAngle.y), -cos(params.cameraAngle.x) * cos(params.cameraAngle.y));
 		float3 ww = normalize(cameraTarget - params.rayOrigin);
-		float3 uu = normalize(cross(ww, make_float3(0., 1., 0.)));
+		float3 uu = normalize(cross(ww, make_float3(0.f, 1.f, 0.f)));
 		float3 vv = normalize(cross(uu, ww));
 		float3 rayDirection = normalize(uu * uvCam.x + vv * uvCam.y + ww * fov);
-
+		
 		if (params.DOF_strenght > 0.f) {
 			float RdoT = dot(ww, rayDirection);
 			float3 target = params.rayOrigin + rayDirection * params.focalDistance / RdoT;
 			params.rayOrigin += generateUniformSample(rand_state) * params.DOF_strenght;
 			rayDirection = normalize(target - params.rayOrigin);
 		}
-		float3 color0 = max3(pixelColor(params, Ray(params.rayOrigin, rayDirection), rand_state, cudaTriList, cudaTriIndex, cudaNodes, cudaMats), make_float3(0.f,0.f,0.f));
+		float3 color0 = max3(pixelColor(params, Ray(params.rayOrigin, rayDirection), rand_state, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, uv.x), make_float3(0.f,0.f,0.f));
 
 		__syncthreads();
 		if (params.frameIndex == 0 || !params.isRendering)
 			accumBuff[idx] = color0;
 		else
-				accumBuff[idx] += color0;
+			accumBuff[idx] += color0;
 
 		float3 color = accumBuff[idx] / (params.isRendering ? params.frameIndex + 1 : 1.);
-		aces(color);
+		color = AgX_tonemap(color);
+
 		// drawing to texture
 		int colorX = color.x * 255;
 		int colorY = color.y * 255;
@@ -470,44 +513,7 @@ namespace pathtracer {
 		ptBuffer[idx * 4 + 2] = uint8_t(clamp(colorZ, 0, 255));
 		ptBuffer[idx * 4 + 3] = uint8_t(255);
 	}
-	
 
-	__global__ inline void antialias(kernelParams params, uint8_t* ptBuffer, uint8_t* dispBuffer) {
-		int x = threadIdx.x + blockIdx.x * blockDim.x;
-		int y = threadIdx.y + blockIdx.y * blockDim.y;
-		//__syncthread();
-		if (x > params.windowSize.x && y > params.windowSize.y) return;
-		if (x <= 1 || x >= params.windowSize.x - 1 || y <= 1 || y >= params.windowSize.y - 1) return;
-
-		int idx = x + y * params.windowSize.x;
-		int left = idx - 1;
-		int right = idx + 1;
-		int top = idx - params.windowSize.x;
-		int bottom = idx + params.windowSize.x;
-
-		int colorR = (int)ptBuffer[idx * 4] +
-					 (int)ptBuffer[left * 4] * 0.5 +
-					 (int)ptBuffer[right * 4] * 0.5 +
-					 (int)ptBuffer[top * 4] * 0.5 +
-					 (int)ptBuffer[bottom * 4] * 0.5;
-
-		int colorG = (int)ptBuffer[idx * 4 + 1] +
-					 (int)ptBuffer[left * 4 + 1] * 0.5 +
-					 (int)ptBuffer[right * 4 + 1] * 0.5 +
-					 (int)ptBuffer[top * 4 + 1] * 0.5 +
-					 (int)ptBuffer[bottom * 4 + 1] * 0.5;
-
-		int colorB = (int)ptBuffer[idx * 4 + 2] +
-					 (int)ptBuffer[left * 4 + 2] * 0.5 +
-					 (int)ptBuffer[right * 4 + 2] * 0.5 +
-					 (int)ptBuffer[top * 4 + 2] * 0.5 +
-					 (int)ptBuffer[bottom * 4 + 2] * 0.5;
-
-		dispBuffer[idx * 4] = uint8_t(colorR * 0.3333f);
-		dispBuffer[idx * 4 + 1] = uint8_t(colorG * 0.3333f);
-		dispBuffer[idx * 4 + 2] = uint8_t(colorB * 0.3333f);
-		dispBuffer[idx * 4 + 3] = uint8_t(255);
-	}
 	void render(kernelParams params) {
 		const int threadSize = 16;
 		dim3 blockSize(8, 8, 1U);

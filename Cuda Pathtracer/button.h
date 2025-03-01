@@ -7,30 +7,57 @@ namespace pathtracer {
 			sf::RectangleShape rectangle;
 			sf::Color color;
 
+			sf::Sprite rectangleSprite;
+			sf::Texture rectTexture;
+
+			float lastpressedTime;
 		public:
 			button_onePress() {
 				rectangle = sf::RectangleShape({ 0.f,0.f });
 				rectangle.setSize({ 0.f,0.f });
 				color = sf::Color::Black;
+				lastpressedTime = 0.f;
 			}
 			button_onePress(sf::Vector2f pos, sf::Vector2f size) {
 				rectangle.setPosition(pos);
 				rectangle.setSize(size);
+				lastpressedTime = 0.f;
 			}
 
-			inline bool isPressed(sf::RenderWindow* window) {
-				sf::Vector2f mousePos = window->mapPixelToCoords(sf::Mouse::getPosition(*window));
+			inline void setTex(sf::Texture* tex) {
+				rectTexture = *tex;
+				rectangleSprite.setTexture(rectTexture);
+				rectangleSprite.setScale({ rectangle.getSize().x / tex->getSize().x, rectangle.getSize().y / tex->getSize().y });
+				rectangleSprite.setPosition(rectangle.getPosition());
+			}
 
-				if (mousePos.x > rectangle.getPosition().x && mousePos.x < rectangle.getPosition().x + rectangle.getSize().x && mousePos.y > rectangle.getPosition().y && mousePos.y < rectangle.getPosition().y + rectangle.getSize().y && sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+			inline bool isPressed(sf::RenderWindow* window, float time) {
+				sf::Vector2f mousePos = window->mapPixelToCoords(sf::Mouse::getPosition(*window));
+				
+
+				if (mousePos.x > rectangle.getPosition().x && 
+					mousePos.x < rectangle.getPosition().x + rectangle.getSize().x && 
+					mousePos.y > rectangle.getPosition().y && 
+					mousePos.y < rectangle.getPosition().y + rectangle.getSize().y && 
+					sf::Mouse::isButtonPressed(sf::Mouse::Left) &&
+					abs(lastpressedTime - time) > 0.4f)
+				{
+					lastpressedTime = time;
 					return true;
 				}
 				return false;
+			}
+			inline void draw(sf::RenderWindow* window) {
+				window->draw(rectangleSprite);
 			}
 		};
 		class button_onoff { // need to add a cooldown
 		private:
 			sf::RectangleShape rectangle;
 			sf::Color color;
+
+			sf::Sprite rectangleSprite;
+			sf::Texture rectTexture;
 
 			bool* status;
 			float lastpressedTime;
@@ -52,6 +79,13 @@ namespace pathtracer {
 				lastpressedTime = 0.f;
 			}
 
+			inline void setTex(sf::Texture* tex) {
+				rectTexture = *tex;
+				rectangleSprite.setTexture(rectTexture);
+				rectangleSprite.setScale({ rectangle.getSize().x / tex->getSize().x, rectangle.getSize().y / tex->getSize().y });
+				rectangleSprite.setPosition(rectangle.getPosition());
+			}
+
 			inline void setBool(bool* ref) {
 				status = ref;
 			}
@@ -62,8 +96,15 @@ namespace pathtracer {
 			inline bool update(sf::RenderWindow* window, float time) {
 				sf::Vector2f mousePos = window->mapPixelToCoords(sf::Mouse::getPosition(*window));
 
-				window->draw(rectangle);
-				if (mousePos.x > rectangle.getPosition().x && mousePos.x < rectangle.getPosition().x + rectangle.getSize().x && mousePos.y > rectangle.getPosition().y && mousePos.y < rectangle.getPosition().y + rectangle.getSize().y && sf::Mouse::isButtonPressed(sf::Mouse::Left) && abs(lastpressedTime - time) > 0.4f) {
+				//window->draw(rectangle);
+				window->draw(rectangleSprite);
+				if (mousePos.x > rectangle.getPosition().x && 
+					mousePos.x < rectangle.getPosition().x + rectangle.getSize().x && 
+					mousePos.y > rectangle.getPosition().y && 
+					mousePos.y < rectangle.getPosition().y + rectangle.getSize().y && 
+					sf::Mouse::isButtonPressed(sf::Mouse::Left) && 
+					abs(lastpressedTime - time) > 0.4f) 
+				{
 					*status = !(*status);
 					lastpressedTime = time;
 					return true;
@@ -76,6 +117,9 @@ namespace pathtracer {
 			sf::RectangleShape rectangle;
 			sf::RectangleShape inside_rect;
 			sf::CircleShape slider;
+
+			sf::Sprite rectangleSprite;
+			sf::Texture rectTexture;
 
 			float minValue, maxValue;
 			float* ref;
@@ -108,6 +152,16 @@ namespace pathtracer {
 				delta = 0.f;
 			}
 
+			inline void setTex(sf::Texture* tex) {
+				rectTexture = *tex;
+				rectangleSprite.setTexture(rectTexture);
+
+				sf::Vector2f size = rectangle.getSize();
+				sf::Vector2f pos = rectangle.getPosition();
+				rectangleSprite.setScale({ size.x / tex->getSize().x, size.y / tex->getSize().y });
+				rectangleSprite.setPosition(pos);
+			}
+
 			inline void setRef(float* ref0, float mi, float ma) {
 				ref = ref0, minValue = mi, maxValue = ma;
 				*ref = clamp(*ref, mi, ma);
@@ -127,7 +181,8 @@ namespace pathtracer {
 			inline void update(sf::RenderWindow* window) {
 				sf::Vector2f mousePos = window->mapPixelToCoords(sf::Mouse::getPosition(*window));
 
-				window->draw(rectangle);
+				//window->draw(rectangle);
+				window->draw(rectangleSprite);
 				window->draw(inside_rect);
 				window->draw(slider);
 				if (mousePos.x > rectangle.getPosition().x && 

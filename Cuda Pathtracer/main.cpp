@@ -3,6 +3,7 @@
 // TODO : add volume support (and maybe an integrated atmosphere idk yet) and also shader based antialiasing
 
 #include "pathtracer.cuh"
+#include "gui_handler.h"
 
 // important includes 
 
@@ -101,6 +102,12 @@ void initScene(pathtracer::kernelParams &params) {
 
     std::cout << "\n\n---- LOADING NEW MODEL ----\n";
 
+    // sub dir input
+    char* subDir = new char[maxModelNameSize];
+    std::cout << "Model sub-directory (leave empty if not) : ";
+    std::cin.getline(subDir, maxModelNameSize);
+    const char* inputSD = subDir;
+
     // user input for model
     char* path = new char[maxModelNameSize];
     std::cout << "Load model : ";
@@ -108,7 +115,7 @@ void initScene(pathtracer::kernelParams &params) {
     const char* inputCst = path;
 
     // model and bvh relative
-    if (!pathtracer::readObjFile(inputCst, numOfTriangles, numOfMaterials)) {
+    if (!pathtracer::readObjFile(inputCst, inputSD, numOfTriangles, numOfMaterials)) {
         std::cout << "Failed to load model, please relaunch.\n";
         exit(1);
     }
@@ -143,6 +150,7 @@ int main()
     params.cameraSpeed = 720.f;
     params.focalDistance = 200.f;
     params.DOF_strenght = 0.f;
+    params.fov = 1.f;
     params.frameIndex = 0;
     params.pixelBuffer = new uint8_t[IMG_SIZE_X * IMG_SIZE_Y * 4];
     params.isRendering = false;
@@ -156,13 +164,8 @@ int main()
         exit(1);
     }
 
-    // buttons handler
-    pathtracer::Buttons::button_slider cameraSpeed({ 0.f,0.f }, { 200.f, 50.f });
-    cameraSpeed.setRef(&params.cameraSpeed, 120.f, 1440.f);
-    pathtracer::Buttons::button_slider dofStrenght({ 0.f,50.f }, { 200.f,50.f });
-    dofStrenght.setRef(&params.DOF_strenght, 0.f, 20.f);
-    pathtracer::Buttons::button_slider focalDist({ 0.f,100.f }, { 200.f,50.f });
-    focalDist.setRef(&params.focalDistance, 0.f, 1000.f);
+    pathtracer::GUI appGUI;
+    appGUI.init(params);
 
     //shaders handler
     sf::Shader antialias;
@@ -210,7 +213,7 @@ int main()
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::M)) {
             saveToFile(&display_texture);
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) && sf::Keyboard::isKeyPressed(sf::Keyboard::G)) {
+        if ((sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) && sf::Keyboard::isKeyPressed(sf::Keyboard::G)) || appGUI.changeModel.isPressed(&window, totalTime)) {
             pathtracer::rootNodeIdx = 0, pathtracer::nodesUsed = 1;
 
             initScene(params);
@@ -226,9 +229,7 @@ int main()
         drawer.setTexture(display_texture);
         window.draw(drawer);
         
-        cameraSpeed.update(&window);
-        dofStrenght.update(&window);
-        focalDist.update(&window);
+        appGUI.update(&window, totalTime, params);
 
         // delta time calculations
         deltaTime = mainClock.restart().asSeconds();

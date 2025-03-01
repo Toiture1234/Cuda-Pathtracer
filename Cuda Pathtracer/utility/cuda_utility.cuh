@@ -38,14 +38,7 @@ namespace pathtracer {
 		float y = r * sinf(a);
 		return make_float3(x, y, z);
 	}
-	__device__  inline void aces(float3& color) {
-		const float a = 2.51;
-		const float b = 0.03;
-		const float c = 2.43;
-		const float d = 0.59;
-		const float e = 0.14;
-		color = clamp((color * (color * a + b)) / (color * (color * c + d) + e), make_float3(0., 0., 0.), make_float3(1., 1., 1.));
-	}
+
 	__device__  __host__ inline float getN(float3 value, int n) {
 		switch (n)
 		{
@@ -71,5 +64,11 @@ namespace pathtracer {
 	__device__ inline float3 ToLocal(float3 X, float3 Y, float3 Z, float3 V)
 	{
 		return make_float3(dot(V, X), dot(V, Y), dot(V, Z));
+	}
+
+	// omg Inigo Quilez you saved my life
+	__device__ inline float3 refIfNeg(float3 v, float3 r) {
+		float k = dot(v, r);
+		return k > 0.0f ? v : v - 2.0f * r * k;
 	}
 }
