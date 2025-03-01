@@ -4,11 +4,11 @@ Un moteur de rendu 3d utilisant CUDA pour le rendu sur le GPU.
 
 Peut charger des modèles 3d au format .obj avec les matériaux. Encore quelques erreurs avec des modèles contenant des vertices de texture. 
 
-Je recommande d'exporter le modèle à partir de Blender en sélectionnant les options Triangulated Mesh, pbr, et en deselectionnant Vertices Textures lors de l'export. 
+Je recommande d'exporter le modèle à partir de Blender en sélectionnant les options Triangulated Mesh et pbr extensions. 
 
 Pour charger un modèle : écrire assets/models/[nom du modèle].obj
 
-#Controles 
+# Controles 
 
 ZQSD : mouvement de caméra 
 
