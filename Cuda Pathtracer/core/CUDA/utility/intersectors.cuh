@@ -51,7 +51,7 @@ namespace pathtracer {
 		
 		hit.normal = normal * (inside ? -1.0 : 1.0);
 
-		float3 oldAbs = hit.mat.extinction;
+		float3 oldAbs = hit.mat.medium.sigmaA;
 		hit.mat = mat;
 		//hit.mat.n = inside ? hit.mat.IOR : 1. / hit.mat.IOR;
 		//hit.mat.absorption = inside ? hit.mat.absorption : oldAbs;
@@ -110,7 +110,7 @@ namespace pathtracer {
 		bool inside = tNear < 0.;
 		if (tFar < 0. || (inside ? tFar : tNear) > hit.t) return false;
 
-		float3 oldAbs = hit.mat.extinction;
+		float3 oldAbs = hit.mat.medium.sigmaA;
 		hit.mat = mat;
 		//hit.mat.n = inside ? hit.mat.IOR : 1. / hit.mat.IOR;
 		//hit.mat.absorption = inside ? hit.mat.absorption : oldAbs;

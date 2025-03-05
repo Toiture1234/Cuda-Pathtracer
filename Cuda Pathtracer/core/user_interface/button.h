@@ -178,7 +178,7 @@ namespace pathtracer {
 				slider.setPosition({ pos.x + size.x * 0.1f + (size.x * 0.8f - size.y * 0.6f) * ((*ref - minValue) / delta), slider.getPosition().y});
 			}
 
-			inline void update(sf::RenderWindow* window) {
+			inline bool update(sf::RenderWindow* window) {
 				sf::Vector2f mousePos = window->mapPixelToCoords(sf::Mouse::getPosition(*window));
 
 				//window->draw(rectangle);
@@ -197,7 +197,9 @@ namespace pathtracer {
 					xCoord = clamp(xCoord, 0.f, 1.f);
 					*ref = minValue + xCoord * delta;
 					slider.setPosition({ pos.x + size.x * 0.1f + (size.x * 0.8f - size.y * 0.6f) * ((*ref - minValue) / delta), slider.getPosition().y });
+					return true;
 				}
+				return false;
 			}
 		};
 	}

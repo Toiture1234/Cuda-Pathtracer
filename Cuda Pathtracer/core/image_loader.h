@@ -1,6 +1,7 @@
 #pragma once
 
 namespace pathtracer {
+
 	inline bool genTexture(cudaTextureObject_t* tex, cudaArray_t* texData, std::string path) {
 		sf::Image img;;
 		if (!img.loadFromFile(path)) return false;
@@ -86,7 +87,8 @@ namespace pathtracer {
 
 		return true;;
 	}
-	inline bool genTextureFromHDR(cudaTextureObject_t* tex, cudaArray_t* texData, std::string path) {
+
+	/*inline bool genTextureFromHDR(cudaTextureObject_t* tex, cudaArray_t* texData, std::string path) {
 
 		// array building
 		float* imgArray;
@@ -119,4 +121,5 @@ namespace pathtracer {
 
 		return true;;
 	}
+	*/
 }

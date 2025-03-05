@@ -71,4 +71,9 @@ namespace pathtracer {
 		float k = dot(v, r);
 		return k > 0.0f ? v : v - 2.0f * r * k;
 	}
+
+	__device__ inline float powerHeuristic(float a, float b) {
+		float t = a * a;
+		return t / (b * b + t);
+	}
 }

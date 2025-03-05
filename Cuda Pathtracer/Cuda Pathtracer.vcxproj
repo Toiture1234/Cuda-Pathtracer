@@ -134,28 +134,32 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="core\envmap.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="pathtracer.cu" />
+    <CudaCompile Include="core\CUDA\pathtracer.cu" />
+    <CudaCompile Include="core\CUDA\utility\envmap_cuda.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="button.h" />
-    <ClInclude Include="BVH\BVH_builder.cpp" />
-    <ClInclude Include="disney.cuh" />
-    <ClInclude Include="file_reader.h" />
-    <ClInclude Include="gui_handler.h" />
-    <ClInclude Include="hdr_loader.h" />
-    <ClInclude Include="image_loader.h" />
+    <ClInclude Include="core\CUDA\includes.cuh" />
+    <ClInclude Include="core\user_interface\button.h" />
+    <ClInclude Include="core\BVH\BVH_builder.cpp" />
+    <ClInclude Include="core\CUDA\disney.cuh" />
+    <ClInclude Include="core\envmap.h" />
+    <ClInclude Include="core\file_reader.h" />
+    <ClInclude Include="core\user_interface\gui_handler.h" />
+    <ClInclude Include="core\hdr_loader.h" />
+    <ClInclude Include="core\image_loader.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="utility\constants.cuh" />
-    <ClInclude Include="utility\cuda_utility.cuh" />
-    <ClInclude Include="utility\float2_header.cuh" />
-    <ClInclude Include="utility\float3_header.cuh" />
-    <ClInclude Include="pathtracer.cuh" />
-    <ClInclude Include="utility\intersectors.cuh" />
-    <ClInclude Include="utility\structs.cuh" />
-    <ClInclude Include="utility\tonemapping.cuh" />
+    <ClInclude Include="core\CUDA\utility\constants.cuh" />
+    <ClInclude Include="core\CUDA\utility\cuda_utility.cuh" />
+    <ClInclude Include="core\CUDA\utility\float2_header.cuh" />
+    <ClInclude Include="core\CUDA\utility\float3_header.cuh" />
+    <ClInclude Include="core\CUDA\pathtracer.cuh" />
+    <ClInclude Include="core\CUDA\utility\intersectors.cuh" />
+    <ClInclude Include="core\CUDA\utility\structs.cuh" />
+    <ClInclude Include="core\CUDA\utility\tonemapping.cuh" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Cuda Pathtracer.rc" />
@@ -165,7 +169,7 @@
     <Image Include="icon2.ico" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="assets\shaders\antialiasing.glsl" />
+    <None Include="assets\shaders\post_process.glsl" />
     <None Include="assets\shaders\vertex.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

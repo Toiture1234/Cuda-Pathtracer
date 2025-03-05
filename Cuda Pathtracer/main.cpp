@@ -1,9 +1,9 @@
 // a CUDA based pathtracer, no volumes yet
 // made by Toiture0x04D2
-// TODO : add volume support (and maybe an integrated atmosphere idk yet) and also shader based antialiasing
+// TODO : BIG CLEANING, THIS CODE IS SO FREAKING MESSY, HAVE TO SEPARATE INTO SMALLER FILES USED FOR SPECIFIC NEEDINGS
 
-#include "pathtracer.cuh"
-#include "gui_handler.h"
+#include "core/CUDA/pathtracer.cuh"
+#include "core/user_interface/gui_handler.h"
 
 // important includes 
 
@@ -129,8 +129,8 @@ void initScene(pathtracer::kernelParams &params) {
     // initialisation of cuda
     pathtracer::initCuda(params);
     pathtracer::transferTriangles(pathtracer::TriangleIdx, pathtracer::allTriangles, numOfTriangles);
-    pathtracer::tranfertMaterials(pathtracer::materialList, numOfMaterials);
-    pathtracer::tranfertBVH(pathtracer::bvhNode, pathtracer::rootNodeIdx, pathtracer::nodesUsed, numOfTriangles);
+    pathtracer::transfertMaterials(pathtracer::materialList, numOfMaterials);
+    pathtracer::transfertBVH(pathtracer::bvhNode, pathtracer::rootNodeIdx, pathtracer::nodesUsed, numOfTriangles);
 }
 
 int main()
@@ -156,22 +156,38 @@ int main()
     params.isRendering = false;
     fillDisplay(params.pixelBuffer);
 
+    params.mult = make_float3(1.f, 1.f, 1.f);
+    params.gamma = 1.f;
+    params.saturation = 1.f;
+    params.contrast = 1.f;
+    params.exposure = 1.f;
+
     params.sunDirection = pathtracer::normalize(make_float3(1., 0.7, -1.));
 
-    cudaArray_t cubeMatData = 0;
-    if (!pathtracer::genTextureFromHDR(&params.cubeMap, &cubeMatData, "assets/cubemaps/sunset_noSun.hdr")) {
+    // environnement stuff
+    pathtracer::envMap environnement;
+    if (!environnement.loadMap("assets/cubemaps/qwantani_noon_2k.hdr")) {
         std::cout << "Failed to load hdr !\n";
         exit(1);
     }
+    cudaArray_t envMapData = 0;
+    cudaArray_t envMap_cdfData = 0;
+    environnement.generateCUDAenvmap(&params.cubeMap, &envMapData, &params.envMap_cdf, &envMap_cdfData);
+    environnement.transfertToParams(&params.envMap_size, &params.envmap_sum);
 
     pathtracer::GUI appGUI;
     appGUI.init(params);
 
     //shaders handler
-    sf::Shader antialias;
-    antialias.loadFromFile("assets/shaders/vertex.glsl", "assets/shaders/antialiasing.glsl");
-    antialias.setUniform("texture", sf::Shader::CurrentTexture);
-    antialias.setUniform("resolution", sf::Vector2f(IMG_SIZE_X, IMG_SIZE_Y));
+    sf::Shader postProcess;
+    postProcess.loadFromFile("assets/shaders/vertex.glsl", "assets/shaders/post_process.glsl");
+    postProcess.setUniform("texture", sf::Shader::CurrentTexture);
+    postProcess.setUniform("resolution", sf::Vector2f(IMG_SIZE_X, IMG_SIZE_Y));
+    postProcess.setUniform("gamma", params.gamma);
+    postProcess.setUniform("exposure", params.exposure);
+    postProcess.setUniform("saturation", params.saturation);
+    postProcess.setUniform("constrast", params.contrast);
+    postProcess.setUniform("multiplier", sf::Vector3f(params.mult.x, params.mult.y, params.mult.z));
 
     // scene creation
     initScene(params);
@@ -227,7 +243,7 @@ int main()
 
         // drawing
         drawer.setTexture(display_texture);
-        window.draw(drawer);
+        window.draw(drawer, &postProcess);
         
         appGUI.update(&window, totalTime, params);
 

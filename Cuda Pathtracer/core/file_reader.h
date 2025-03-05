@@ -76,15 +76,15 @@ namespace pathtracer {
 					//std::cout << "d of " << current.name << " : " << value << "\n";
 					current.matProperties.specTrans = 1. - value;
 				}
-				/*else if (readUntil(line, 0, ' ', &tokenEnd) == "Tf") {
+				else if (readUntil(line, 0, ' ', &tokenEnd) == "Tf") {
 					float3 values = make_float3(0.f, 0.f, 0.f);
 
 					values.x = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
 					values.y = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));
 					values.z = stof(readUntil(line, tokenEnd + 1, '\n', &tokenEnd));
 					//std::cout << "Ke of " << current.name << " : " << values.x << " " << values.y << " " << values.z << "\n";
-					current.matProperties.specTrans = (values.x + values.y + values.z) * 0.3333f;
-				}*/
+					current.matProperties.medium.sigmaA = 1.f - values;
+				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "Ni") {
 					float value = 1.0f;
 					value = stof(readUntil(line, tokenEnd + 1, ' ', &tokenEnd));

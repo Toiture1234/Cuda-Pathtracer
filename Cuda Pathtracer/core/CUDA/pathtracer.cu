@@ -1,4 +1,5 @@
 #include "pathtracer.cuh" // very important first include for cuda to work
+#include "utility/envmap_cuda.cu"
 
 namespace pathtracer {
 	// constants
@@ -10,7 +11,7 @@ namespace pathtracer {
 	int* cudaTrianglesIndex;
 	BVH_Node* cudaBVHNodes;
 	Material* cudaMaterialList;
-
+	
 	__device__ int RootandUsedNodes_dev[2];
 
 	// host functions
@@ -64,12 +65,12 @@ namespace pathtracer {
 		cudaEventElapsedTime(&ms, start, stop);
 		printf("Triangles tranfered in %f ms \n", ms);
 	}
-	void tranfertMaterials(Material* hostMatList, int nbMat) {
+	void transfertMaterials(Material* hostMatList, int nbMat) {
 		cudaMalloc((void**)&cudaMaterialList, nbMat * sizeof(Material));
 		cudaMemcpy(cudaMaterialList, hostMatList, nbMat * sizeof(Material), cudaMemcpyHostToDevice);
 		printf("Materials transfered !\n");
 	}
-	void tranfertBVH(BVH_Node* nodes_host, int rootNIdx_host, int nodesUsed_host, int nbTri) {
+	void transfertBVH(BVH_Node* nodes_host, int rootNIdx_host, int nodesUsed_host, int nbTri) {
 		//cudaMemcpyToSymbol(Nodes_dev, nodes_host, (N * 2 - 1) * sizeof(BVH_Node));
 		int p[2] = { rootNIdx_host, nodesUsed_host };
 		cudaMemcpyToSymbol(RootandUsedNodes_dev, p, 2 * sizeof(int));
@@ -78,7 +79,6 @@ namespace pathtracer {
 		cudaMemcpy(cudaBVHNodes, nodes_host, (nbTri * 2 - 1) * sizeof(BVH_Node), cudaMemcpyHostToDevice);
 		printf("BVH transfered !!\n");
 	}
-	
 	void endCuda() {
 
 		cudaError_t error = cudaFree(accum_buffer_dev);
@@ -118,7 +118,7 @@ namespace pathtracer {
 		float t = f * dot(edge2, q);
 
 		if (t < 0. || t > hit.t) return false;
-		float3 oldAbsorption = hit.mat.extinction;
+		float3 oldAbsorption = hit.mat.medium.sigmaA;
 
 		hit.t = t;
 		hit.mat = mat;
@@ -206,19 +206,6 @@ namespace pathtracer {
 		}
 		return false;
 	}
-	__device__ inline float3 shadowRay(Hit info, Ray sunRay, Ray ray, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats, int3& debug) {
-		if (BVHIntersect(info, sunRay, debug, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, true)) {
-			return make_float3(0.f, 0.f, 0.f);
-		}
-		float pdf;
-		float3 value = Disney::DisneyEval_2(info, ray.d * 1.0f, info.normal, sunRay.d, pdf);
-		return value;
-	}
-	__device__ inline float3 skyBoxSample(float3 direction, kernelParams params) {
-		const float4 texVal = tex2D<float4>(params.cubeMap,
-			atan2f(direction.z, direction.x) * (float)(0.5f / PI) + 0.5f, 1.f - (direction.y * 0.5f + 0.5f));
-		return make_float3(texVal.x, texVal.y, texVal.z);
-	}
 	
 	__device__ inline Hit map(Ray ray, int3 &debug, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
 		Hit hit;
@@ -229,23 +216,20 @@ namespace pathtracer {
 		/*Material sphMat;
 		sphMat.metallic = 0.;
 		sphMat.baseColor = make_float3(1., 1., 1.);
-		sphMat.roughness = 0.8;
-		sphMat.specTrans = 0.;
-		sphMat.clearcoat = 1.f;
-		sphMat.clearcoatRoughness = 0.01;
+		sphMat.roughness = 0.0;
+		sphMat.specTrans = 1.;
+		sphMat.ior = 1.001f;
+		// medium
+		sphMat.medium.sigmaS = make_float3(1.f, 1.0f, 1.0f) * 0.05f;
+		sphMat.medium.sigmaA = make_float3(0.f, 1.0f, 1.0f) * 0.05f;
+
 		sphereIntersect(hit, ray, make_float4(-400., 50., 0., 50.), sphMat);
-		sphMat.clearcoatRoughness = 0.1;
 		sphereIntersect(hit, ray, make_float4(-250., 50., 0., 50.), sphMat);
-		sphMat.clearcoatRoughness = 0.2;
 		sphereIntersect(hit, ray, make_float4(-100., 50., 0., 50.), sphMat);
-		sphMat.clearcoatRoughness = 0.4;
 		sphereIntersect(hit, ray, make_float4(50., 50., 0., 50.), sphMat);
-		sphMat.clearcoatRoughness = 0.6;
 		sphereIntersect(hit, ray, make_float4(200., 50., 0., 50.), sphMat);
-		sphMat.clearcoatRoughness = 1.;
 		sphereIntersect(hit, ray, make_float4(350., 50., 0., 50.), sphMat);
 		*/
-
 		return hit;
 	}
 	__device__ inline float3 sampleSkyboxOnBounce(Hit info,
@@ -256,20 +240,31 @@ namespace pathtracer {
 												Material* cudaMats,
 												int3& debug,
 												Rand_state& state,
-												kernelParams params) {
-		// generate a sample based on bsdf (for now)
+												kernelParams params,
+												bool& doSampleSky,
+												float uvX)
+	{
 		float3 L;
-		float pdf;
-		float3 bsdf = Disney::DisneySample_2(info, ray.d * -1.f, info.normal, L, pdf, state);
-		float bsdf_pdf;
+		float L_pdf;
+		
+		float3 color;
+		float4 dat = sampleEnvMap(color, params, state);
+		L = make_float3(dat.x, dat.y, dat.z);
+		L_pdf = dat.w;
 
 		Hit info0 = map(Ray(ray.o, L), debug, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
-		if (info0.hit) return make_float3(0.f, 0.f, 0.f);
+		if (info0.hit) return make_float3(0.f, 0.f, 0.f); // in shadow
 
-		float3 bsdfEv = Disney::DisneyEval_2(info, ray.d * -1.0, info.normal, L, bsdf_pdf);
-		if (pdf > 0.f)
-			return skyBoxSample(L, params) * bsdfEv / pdf;
-		else return make_float3(0.f, 0.f, 0.f);
+		float bsdf_pdf;
+		float3 bsdfF = Disney::DisneyEval_2(info, -1.f * ray.d, info.normal, L, bsdf_pdf);
+		if (bsdf_pdf > 0.f) {
+			float misWeight = powerHeuristic(L_pdf, bsdf_pdf);
+			if (misWeight > 0.f) {
+				return misWeight * color * bsdfF / L_pdf;
+			}
+		}
+
+		return make_float3(0.f, 0.f, 0.f);
 	}
 	__device__ float HG(float g, float sundotrd) {
 		float gg = g * g;	return (1. - gg) / pow(1. + gg - 2. * g * sundotrd, 1.5);
@@ -312,7 +307,17 @@ namespace pathtracer {
 		return make_float3(texVal.x, texVal.y, texVal.z);*/
 		return skyBoxSample(rayDir, params);
 	}
-	__device__ inline void pathtrace(float& result, kernelParams params, Ray ray, Rand_state& state, int channel, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats, float uvX) {
+	__device__ inline void pathtrace(float& result, 
+									kernelParams params, 
+									Ray ray, 
+									Rand_state& state, 
+									int channel, 
+									Triangle* cudaTriList, 
+									int* cudaTriIndex, 
+									BVH_Node* cudaNodes, 
+									Material* cudaMats, 
+									float uvX)
+	{
 		float rayColor = 1.0;
 
 		Hit info;
@@ -320,92 +325,68 @@ namespace pathtracer {
 		int3 nullVal = make_int3(0, 0, 0);
 		bool sampleSky = true;
 		float x0 = ray.d.x;
+		float pdf;
 		for (int i = 0; i < 50; i++) {
 			info = map(ray, nullVal, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
 			info.isInside = inside;
 
 			if (!info.hit) {
-				result += getN(skyColor(ray.d, params), channel) * rayColor * sampleSky;
-				return;
+				float4 envmap_col_pdf = evalEnvmap(ray.d, params);
+				float3 envMapCol = make_float3(envmap_col_pdf.x, envmap_col_pdf.y, envmap_col_pdf.z);
+				float envMap_pdf = envmap_col_pdf.w;
+
+				float misWeight = 1.f;
+				if (!sampleSky) misWeight = powerHeuristic(pdf, envMap_pdf);
+
+				if (misWeight > 0.f)
+					result += getN(misWeight * envMapCol * rayColor, channel);
+				
 			}
 
 			ray.o += ray.d * info.t;
-			info.mat.roughness = fmaxf(info.mat.roughness, 0.001f);
+			info.mat.roughness = fmaxf(info.mat.roughness, 0.0001f);
 
-			if (info.isInside)
-				rayColor *= exp(-getN(info.mat.extinction * info.t, channel));
-			/*
-			// material prop
-			float specularChance = 0.;
-			float refractionChance = info.mat.refractionProba;
-
-			float rayProba = 1.;
-			if (info.mat.f90 > 0.) {
-				specularChance = FresnelReflectAmount(info.isInside ? getN(info.mat.IOR, channel) : 1.0f, 
-					!info.isInside ? getN(info.mat.IOR, channel) : 1.0f, 
-					ray, info);
-			}
-			//float isSpecular = rand(&state) < specularChance ? 1. : 0.;
-			float isSpecular = 0.;
-			float isRefractive = 0.;
-			float zeta = randC(&state);
-			if (specularChance > 0. && zeta < specularChance) {
-				isSpecular = 1.;
-				rayProba = specularChance;
-				ray.o += info.normal * 0.1;
-			}
-			else if (refractionChance > 0. && zeta < refractionChance + specularChance) {
-				isRefractive = 1.;
-				rayProba = refractionChance;
-				ray.o -= info.normal * 0.1;
-			}
-			else {
-				rayProba = 1. - (specularChance + refractionChance);
-				ray.o += info.normal * 0.1;
+			bool mediumScatter = false;
+			if (info.isInside) { // medium interaction, scatter or absorb
+				float3 sigmaT = info.mat.medium.sigmaA + info.mat.medium.sigmaS;
+				float zeta = randC(&state);
+				if (zeta < getN(info.mat.medium.sigmaA / sigmaT, channel)) { // absorb event
+					rayColor *= exp(-getN(sigmaT * info.t, channel)); 
+				}
+				else { // scatter event
+					float scatterDistance = -log(1.f - randC(&state)) / getN(sigmaT, channel);
+					if (scatterDistance < info.t) {
+						mediumScatter = true;
+						ray.o += ray.d * scatterDistance;
+						ray.d = generateUniformSample(state);
+					}
+				}
+				
 			}
 
-			float3 diffuseRay = normalize(info.normal + generateUniformSample(state));
-			float3 specularRay = reflect(ray.d, info.normal);
-			specularRay = normalize(mix(diffuseRay, specularRay, info.mat.specularSmoothness * info.mat.specularSmoothness));
+			if (!mediumScatter) {
+				float rC = randC(&state);
+				if (rC < info.mat.alpha) {
+					
+					sampleSky = false;
 
-			float3 refractionRayDir = refract(ray.d, info.normal, getN(info.isInside ? info.mat.IOR : 1. / info.mat.IOR, channel));
+					result += getN(sampleSkyboxOnBounce(info,
+							Ray(ray.o + info.normal * 0.01f, ray.d),
+							cudaTriList, cudaTriIndex, cudaNodes, cudaMats,
+							nullVal, state, params, sampleSky,uvX), channel) * rayColor;
+					
 
-			ray.d = mix(diffuseRay, specularRay, isSpecular);
-			if (dot(refractionRayDir, refractionRayDir) == 0.f) refractionRayDir = ray.d; // should be useless unless f90 == 0
-			ray.d = mix(ray.d, refractionRayDir, isRefractive);
+					float3 L;
+					float3 bsdf = Disney::DisneySample_2(info, ray.d * -1.f, info.normal, L, pdf, state, inside);
+					ray.d = L;
 
-			result += getN(info.mat.emissive, channel) * rayColor;
+					result += getN(info.mat.emissive, channel) * rayColor;
 
-			if (isRefractive < 0.5)
-				rayColor *= mix(getN(info.mat.albedo, channel), getN(info.mat.specularAlbedo, channel), isSpecular);
-			else inside = !inside;
-
-			rayProba = fmax(rayProba, 0.0001f);
-			rayColor /= rayProba;
-			*/
-
-			float rC = randC(&state);
-			if (rC < info.mat.alpha) {
-				float3 L;
-				float pdf;
-				float3 bsdf = Disney::DisneySample_2(info, ray.d * -1.f, info.normal, L, pdf, state);
-
-				result += getN(info.mat.emissive, channel) * rayColor;
-
-				// disable it for now
-				/*if (uvX > 0.5) {
-					result += getN(sampleSkyboxOnBounce(info, Ray(ray.o + info.normal * 0.01f, ray.d), cudaTriList, cudaTriIndex, cudaNodes, cudaMats, nullVal, state, params), channel) * rayColor;
-
-					sampleSky = false; // this would be useful when sampling the skybox at each bounce
-				}*/
-
-				if (pdf > 0.f) rayColor *= getN(bsdf / pdf, channel);
-				else return;
-
-				inside = info.isInside;
-				ray.d = L;
+					if (pdf > 0.f) rayColor *= getN(bsdf / pdf, channel);
+					else return;
+				}
+				ray.o += ray.d * 0.01f;
 			}
-			ray.o += ray.d * 0.01f;
 
 			// russian roulette 
 			{
@@ -418,15 +399,19 @@ namespace pathtracer {
 		}
 		return;
 	}
-	__device__ inline float3 pixelColor(kernelParams params, Ray ray, Rand_state& state, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats, float uvX) {
+	__device__ inline float3 pixelColor(kernelParams params, 
+										Ray ray, 
+										Rand_state& state, 
+										Triangle* cudaTriList, 
+										int* cudaTriIndex, 
+										BVH_Node* cudaNodes, 
+										Material* cudaMats, 
+										float uvX)
+	{
 		float3 color = make_float3(0., 0., 0.);
 		if (!params.isRendering) {
 			int3 debugV = make_int3(0, 0, 0);
 			Hit info = map(ray, debugV, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
-			//color = info.normal * 0.5 + 0.5;
-			//float4 test = tex2D<float4>(cudaMats[0].diffuseTexture, 0.f, 0.f);
-			//color = dot(ray.d, info.normal) < 0.f ? make_float3(0.f, 0.f, 1.f) : make_float3(1.f, 0.f, 0.f);
-			//if (dot(info.normal, info.normal) == 0.) color = skyColor(ray.d, params);
 
 			if (info.hit) {
 				//float pdf;
@@ -438,7 +423,11 @@ namespace pathtracer {
 				//color = color * 0.5f + 0.5f;
 				float NoV = fmaxf(dot(ray.d * -1.0, info.normal), 0.f);
 				color = NoV * info.mat.baseColor;
-			} else color = skyColor(ray.d, params);
+			}
+			else {
+				float4 read = evalEnvmap(ray.d, params);
+				color = make_float3(read.x, read.y, read.z);
+			}
 			//color.x = (float)debugV.z * 0.5f;
 			//color.z = (float)debugV.x * 0.05f;
 		}
@@ -456,14 +445,18 @@ namespace pathtracer {
 				pathtrace(color.z, params, ray, state, 2, cudaTriList, cudaTriIndex, cudaNodes, cudaMats, uvX);
 				break;
 			}
-			//pathtrace(color.x, params, ray, state, 0);
-			//pathtrace(color.y, params, ray, state, 1);
-			//pathtrace(color.z, params, ray, state, 2);
 			color *= 3.f;
 		}
 		return color;
 	}
-	__global__ inline void renderPixel(kernelParams params, uint8_t* ptBuffer, float3* accumBuff, Triangle* cudaTriList, int* cudaTriIndex, BVH_Node* cudaNodes, Material* cudaMats) {
+	__global__ inline void renderPixel(kernelParams params, 
+										uint8_t* ptBuffer, 
+										float3* accumBuff, 
+										Triangle* cudaTriList, 
+										int* cudaTriIndex, 
+										BVH_Node* cudaNodes, 
+										Material* cudaMats) 
+	{
 		int x = threadIdx.x + blockIdx.x * blockDim.x;
 		int y = threadIdx.y + blockIdx.y * blockDim.y;
 		//__syncthread();

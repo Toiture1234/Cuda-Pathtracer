@@ -77,6 +77,15 @@ namespace pathtracer {
 		__device__ __host__ ~Material() {}
 	};*/
 
+	struct Medium {
+		float G;
+		float3 sigmaA;
+		float3 sigmaS;
+		__device__ __host__ inline Medium() {
+			G = 0.f;
+			sigmaA = sigmaS = make_float3(0.f, 0.f, 0.f);
+		}
+	};
 	struct Material {
 		float3 baseColor;
 		float3 emissive;
@@ -90,7 +99,7 @@ namespace pathtracer {
 		float specTrans;
 		float alpha; // almost same as specTrans but no refraction and no change of index of refraction
 		float ior;
-		float3 extinction;
+		Medium medium;
 
 		cudaTextureObject_t diffuseTexture = 0; // actually texture of float4
 		bool useTexture;
@@ -110,7 +119,7 @@ namespace pathtracer {
 		__device__ __host__ inline Material() {
 			baseColor = make_float3(0.f, 0.f, 0.f);
 			emissive = make_float3(0.f, 0.f, 0.f);
-			extinction = make_float3(0.f, 0.f, 0.f);
+			medium = Medium();
 			roughness = 0.01f;
 			anisotropic = 0.f;
 			metallic = 0.f;
@@ -125,6 +134,7 @@ namespace pathtracer {
 			use_mapPm = 0;
 			use_mapNor = 0;
 			alpha = 1.;
+			use_mapKe = 0;
 		};
 	};
 	struct Hit {
@@ -178,5 +188,39 @@ namespace pathtracer {
 			float3 e = bMax - bMin;
 			return e.x * e.y + e.y * e.z + e.z * e.x;
 		}
+	};
+
+	struct kernelParams {
+		int2 windowSize;
+
+		// camera stuff
+		float3 rayOrigin;
+		float3 rayDirectionZ;
+		float3 cameraAngle;
+		float cameraSpeed;
+
+		float3 sunDirection;
+
+		float focalDistance;
+		float DOF_strenght;
+		float fov;
+
+		int frameIndex;
+
+		uint8_t* pixelBuffer;
+
+		bool isRendering;
+
+		float envmap_sum;
+		int2 envMap_size;
+		cudaTextureObject_t cubeMap;
+		cudaTextureObject_t envMap_cdf;
+
+		// post process
+		float3 mult;
+		float gamma;
+		float contrast;
+		float saturation;
+		float exposure;
 	};
 }

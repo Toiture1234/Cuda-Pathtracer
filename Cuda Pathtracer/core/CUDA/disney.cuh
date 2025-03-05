@@ -57,6 +57,7 @@ namespace pathtracer {
 
             return normalize(make_float3(ax * Nh.x, ay * Nh.y, fmaxf(0.0, Nh.z)));
         }
+        
         __device__ inline float DielectricFresnel(float cosThetaI, float eta)
         {
             float sinThetaTSq = eta * eta * (1.0f - cosThetaI * cosThetaI);
@@ -141,6 +142,12 @@ namespace pathtracer {
             float cosPhi = cos(phi);
 
             return make_float3(sinTheta * cosPhi, sinTheta * sinPhi, cosTheta);
+        }
+        __device__ inline float GGXVNDFPdf(float NoH, float NoV, float roughness)
+        {
+            float D = GTR1_2(roughness, NoH);
+            float G1 = SmithG_2(NoV, roughness * roughness);
+            return (D * G1) / fmaxf(0.00001f, 4.0f * NoV);
         }
 
         // Disney
@@ -230,6 +237,10 @@ namespace pathtracer {
             float eta = info.isInside ? info.mat.ior : 1.f / info.mat.ior;
             float3 f = make_float3(0.f, 0.f, 0.f);
 
+            float aspect = rsqrtf(1.f - 0.9f * info.mat.anisotropic);
+            float ax = info.mat.roughness * info.mat.roughness / aspect;
+            float ay = info.mat.roughness * info.mat.roughness * aspect;
+
             // TODO: Tangent and bitangent should be calculated from mesh (provided, the mesh has proper uvs)
             float3 T, B;
             Onb(N, T, B);
@@ -292,7 +303,7 @@ namespace pathtracer {
                 // Normalize for interpolating based on Cspec0
                 float F = (DielectricFresnel(VDotH, 1.0 / info.mat.ior) - F0) / (1.0 - F0);
 
-                f += EvalMicrofacetReflection(info.mat, V, L, H, mix(Cspec0, make_float3(1.f, 1.f, 1.f), F), info.mat.roughness, info.mat.roughness, tmpPdf) * dielectricWt;
+                f += EvalMicrofacetReflection(info.mat, V, L, H, mix(Cspec0, make_float3(1.f, 1.f, 1.f), F), ax, ay, tmpPdf) * dielectricWt;
                 pdf += tmpPdf * dielectricPr;
             }
 
@@ -302,7 +313,7 @@ namespace pathtracer {
                 // Tinted to base color
                 float3 F = mix(info.mat.baseColor, make_float3(1.f, 1.f, 1.f), SchlickWeight(VDotH));
 
-                f += EvalMicrofacetReflection(info.mat, V, L, H, F, info.mat.roughness, info.mat.roughness, tmpPdf) * metalWt;
+                f += EvalMicrofacetReflection(info.mat, V, L, H, F, ax, ay, tmpPdf) * metalWt;
                 pdf += tmpPdf * metalPr;
             }
 
@@ -314,12 +325,12 @@ namespace pathtracer {
 
                 if (reflect)
                 {
-                    f += EvalMicrofacetReflection(info.mat, V, L, H, make_float3(F, F, F), info.mat.roughness, info.mat.roughness, tmpPdf) * glassWt;
+                    f += EvalMicrofacetReflection(info.mat, V, L, H, make_float3(F, F, F), ax, ay, tmpPdf) * glassWt;
                     pdf += tmpPdf * glassPr * F;
                 }
                 else
                 {
-                    f += EvalMicrofacetRefraction(info.mat, eta, V, L, H, make_float3(F, F, F), info.mat.roughness, info.mat.roughness, tmpPdf) * glassWt;
+                    f += EvalMicrofacetRefraction(info.mat, eta, V, L, H, make_float3(F, F, F), ax, ay, tmpPdf) * glassWt;
                     pdf += tmpPdf * glassPr * (1.0f - F);
                 }
             }
@@ -333,10 +344,14 @@ namespace pathtracer {
 
             return f * abs(L.z);
         }
-        __device__ inline float3 DisneySample_2(Hit info, float3 V, float3 N, float3& L, float& pdf, Rand_state& state)
+        __device__ inline float3 DisneySample_2(Hit info, float3 V, float3 N, float3& L, float& pdf, Rand_state& state, bool& inside)
         {
             pdf = 0.0;
             float eta = info.isInside ? info.mat.ior : 1.f / info.mat.ior;
+
+            float aspect = rsqrtf(1.f - 0.9f * info.mat.anisotropic);
+            float ax = info.mat.roughness * info.mat.roughness / aspect;
+            float ay = info.mat.roughness * info.mat.roughness * aspect;
 
             float r1 = randC(&state);
             float r2 = randC(&state);
@@ -392,7 +407,7 @@ namespace pathtracer {
             }
             else if (r3 < cdf[2]) // Dielectric + Metallic reflection
             {
-                float3 H = SampleGGXVNDF(V, info.mat.roughness, info.mat.roughness, r1, r2);
+                float3 H = SampleGGXVNDF(V, ax, ay, r1, r2);
 
                 if (H.z < 0.0)
                     H = -1.f * H;
@@ -401,7 +416,7 @@ namespace pathtracer {
             }
             else if (r3 < cdf[3]) // Glass
             {
-                float3 H = SampleGGXVNDF(V, info.mat.roughness, info.mat.roughness, r1, r2);
+                float3 H = SampleGGXVNDF(V, ax, ay, r1, r2);
                 float F = DielectricFresnel(abs(dot(V, H)), eta);
 
                 if (H.z < 0.0)
@@ -418,6 +433,7 @@ namespace pathtracer {
                 else // Transmission
                 {
                     L = normalize(refract(-1.f * V, H, eta));
+                    inside = !inside;
                 }
             }
             else // Clearcoat

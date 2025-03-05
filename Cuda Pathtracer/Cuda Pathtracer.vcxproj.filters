@@ -18,57 +18,65 @@
     <ClCompile Include="main.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
+    <ClCompile Include="core\envmap.cpp">
+      <Filter>Fichiers sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="utility\float2_header.cuh">
+    <ClInclude Include="core\CUDA\utility\float2_header.cuh">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="utility\float3_header.cuh">
+    <ClInclude Include="core\CUDA\utility\float3_header.cuh">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="pathtracer.cuh">
+    <ClInclude Include="core\CUDA\pathtracer.cuh">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="utility\structs.cuh">
+    <ClInclude Include="core\CUDA\utility\structs.cuh">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="utility\intersectors.cuh">
+    <ClInclude Include="core\CUDA\utility\intersectors.cuh">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="utility\cuda_utility.cuh">
+    <ClInclude Include="core\CUDA\utility\cuda_utility.cuh">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="utility\constants.cuh">
+    <ClInclude Include="core\CUDA\utility\constants.cuh">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="file_reader.h">
+    <ClInclude Include="core\file_reader.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="BVH\BVH_builder.cpp">
+    <ClInclude Include="core\BVH\BVH_builder.cpp">
       <Filter>Fichiers sources</Filter>
     </ClInclude>
-    <ClInclude Include="disney.cuh" />
-    <ClInclude Include="hdr_loader.h">
+    <ClInclude Include="core\CUDA\disney.cuh" />
+    <ClInclude Include="core\hdr_loader.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="button.h">
+    <ClInclude Include="core\user_interface\button.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="image_loader.h">
+    <ClInclude Include="core\image_loader.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="gui_handler.h">
+    <ClInclude Include="core\user_interface\gui_handler.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="utility\tonemapping.cuh" />
+    <ClInclude Include="core\CUDA\utility\tonemapping.cuh" />
+    <ClInclude Include="core\envmap.h">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </ClInclude>
+    <ClInclude Include="core\CUDA\includes.cuh" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="pathtracer.cu">
+    <CudaCompile Include="core\CUDA\pathtracer.cu">
       <Filter>Fichiers sources</Filter>
     </CudaCompile>
+    <CudaCompile Include="core\CUDA\utility\envmap_cuda.cu" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Cuda Pathtracer.rc">
@@ -84,7 +92,7 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <None Include="assets\shaders\antialiasing.glsl" />
+    <None Include="assets\shaders\post_process.glsl" />
     <None Include="assets\shaders\vertex.glsl" />
   </ItemGroup>
 </Project>

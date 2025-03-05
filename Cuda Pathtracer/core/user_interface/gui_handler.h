@@ -11,21 +11,22 @@ namespace pathtracer {
 
 		Buttons::button_onoff toggleRender;
 		
-
 		//textures
 		sf::Texture button_back;
+		sf::Texture button_back_load;
+		sf::Texture button_back_toggle;
 	public:
 		GUI() {}
 
 		inline void init(kernelParams& params) {
 			// sizes
-			camSpeed = Buttons::button_slider({ 0.f,0.f }, { 200.f, 50.f });
-			dof_strength = Buttons::button_slider({ 0.f,50.f }, { 200.f,50.f });
-			focalDist = Buttons::button_slider({ 0.f,100.f }, { 200.f,50.f });
-			fov = Buttons::button_slider({ 0.f,150.f }, { 200.f, 50.f });
+			camSpeed = Buttons::button_slider({ 0.f,50.f }, { 200.f, 50.f });
+			dof_strength = Buttons::button_slider({ 0.f,100.f }, { 200.f,50.f });
+			focalDist = Buttons::button_slider({ 0.f,150.f }, { 200.f,50.f });
+			fov = Buttons::button_slider({ 0.f,200.f }, { 200.f, 50.f });
 
-			toggleRender = Buttons::button_onoff({ 0.f, 200.f }, { 50.f,50.f });
-			changeModel = Buttons::button_onePress({ 0.f,250.f }, { 50.f,50.f });
+			toggleRender = Buttons::button_onoff({ 0.f, 250.f }, { 100.f,100.f });
+			changeModel = Buttons::button_onePress({ 0.f,350.f }, { 100.f,100.f });
 			
 			// variables
 			camSpeed.setRef(&params.cameraSpeed, 120.f, 1440.f);
@@ -36,13 +37,15 @@ namespace pathtracer {
 			toggleRender.setBool(&params.isRendering);
 
 			button_back.loadFromFile("assets/gui/textures/button_back.png");
+			button_back_load.loadFromFile("assets/gui/textures/button_back_load.png");
+			button_back_toggle.loadFromFile("assets/gui/textures/button_back_toggle.png");
 			camSpeed.setTex(&button_back);
 			dof_strength.setTex(&button_back);
 			focalDist.setTex(&button_back);
 			fov.setTex(&button_back);
 
-			toggleRender.setTex(&button_back);
-			changeModel.setTex(&button_back);
+			toggleRender.setTex(&button_back_toggle);
+			changeModel.setTex(&button_back_load);
 		}
 
 		inline void update(sf::RenderWindow* window, float time, kernelParams& params) {
