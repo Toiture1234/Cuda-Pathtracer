@@ -132,13 +132,32 @@ void initScene(pathtracer::kernelParams &params) {
     pathtracer::transfertMaterials(pathtracer::materialList, numOfMaterials);
     pathtracer::transfertBVH(pathtracer::bvhNode, pathtracer::rootNodeIdx, pathtracer::nodesUsed, numOfTriangles);
 }
+void updateSkyMap(pathtracer::kernelParams& params, cudaArray_t* envMapData, cudaArray_t* envMap_cdfData) 
+{
+    char* subDir = new char[128];
+    std::cout << "Environnement map : ";
+    std::cin.getline(subDir, 128);
+    const char* inputSD = subDir;
 
+    std::string path = "assets/cubemaps/" + std::string(inputSD);
+    // environnement stuff
+    pathtracer::envMap environnement;
+    if (!environnement.loadMap(path)) {
+        std::cout << "Failed to load hdr !\n";
+        exit(1);
+    }
+
+    environnement.generateCUDAenvmap(&params.cubeMap, envMapData, &params.envMap_cdf, envMap_cdfData);
+    environnement.transfertToParams(&params.envMap_size, &params.envmap_sum);
+
+    std::cout << "Done !\n";
+}
 int main()
 {
-    sf::RenderWindow window(sf::VideoMode({ IMG_SIZE_X, IMG_SIZE_Y }), "CUDA pathtracer, v0.9");
+    sf::RenderWindow window(sf::VideoMode({ IMG_SIZE_X, IMG_SIZE_Y }), "CUDA pathtracer, v1.0");
 
     srand(time(NULL));
-    std::cout << "---- Pathtracer made by Toiture, v0.9 ----\n";
+    std::cout << "---- Pathtracer made by Toiture, v1.0 ----\n";
 
     // kernel params
     pathtracer::kernelParams params;
@@ -164,16 +183,9 @@ int main()
 
     params.sunDirection = pathtracer::normalize(make_float3(1., 0.7, -1.));
 
-    // environnement stuff
-    pathtracer::envMap environnement;
-    if (!environnement.loadMap("assets/cubemaps/qwantani_noon_2k.hdr")) {
-        std::cout << "Failed to load hdr !\n";
-        exit(1);
-    }
     cudaArray_t envMapData = 0;
     cudaArray_t envMap_cdfData = 0;
-    environnement.generateCUDAenvmap(&params.cubeMap, &envMapData, &params.envMap_cdf, &envMap_cdfData);
-    environnement.transfertToParams(&params.envMap_size, &params.envmap_sum);
+    updateSkyMap(params, &envMapData, &envMap_cdfData);
 
     pathtracer::GUI appGUI;
     appGUI.init(params);
@@ -235,6 +247,9 @@ int main()
             initScene(params);
             params.frameIndex = 0;
             params.isRendering = false;
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) && sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
+            updateSkyMap(params, &envMapData, &envMap_cdfData);
         }
 
         // rendering

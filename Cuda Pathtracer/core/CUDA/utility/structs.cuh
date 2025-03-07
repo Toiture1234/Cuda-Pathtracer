@@ -80,7 +80,7 @@ namespace pathtracer {
 	struct Medium {
 		float G;
 		float3 sigmaA;
-		float3 sigmaS;
+		float3 sigmaS; // actually useless
 		__device__ __host__ inline Medium() {
 			G = 0.f;
 			sigmaA = sigmaS = make_float3(0.f, 0.f, 0.f);

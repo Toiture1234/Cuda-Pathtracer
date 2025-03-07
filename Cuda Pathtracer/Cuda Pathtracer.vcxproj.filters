@@ -77,6 +77,7 @@
       <Filter>Fichiers sources</Filter>
     </CudaCompile>
     <CudaCompile Include="core\CUDA\utility\envmap_cuda.cu" />
+    <CudaCompile Include="core\CUDA\utility\phase_function.cu" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Cuda Pathtracer.rc">

@@ -5,4 +5,5 @@ namespace pathtracer {
 	__device__ __constant__ const float INV_PI = 0.318309f;
 	__device__ __constant__ const float TWO_PI = 6.283184f;
 	__device__ __constant__ const float INV_TWO_PI = 0.159154976203148f;
+	__device__ __constant__ const float INV_4_PI = 0.78539816339744830961566084581988f;
 }

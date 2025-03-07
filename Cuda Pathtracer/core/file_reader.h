@@ -130,10 +130,9 @@ namespace pathtracer {
 					current.matProperties.use_mapPm = genTexture_float(&current.matProperties.metallicTexture, &cuArr, path);
 				}
 				else if (readUntil(line, 0, ' ', &tokenEnd) == "map_Bump") {
-					/*std::string nextToken = readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
-					std::string tmpPath = nextToken;
-					if(nextToken == "-bm")
-						readUntil(line, tokenEnd + 1, ' ', &tokenEnd);*/
+					readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
+					readUntil(line, tokenEnd + 1, ' ', &tokenEnd);
+
 					std::string tmpPath = readUntil(line, tokenEnd + 1, '\n', &tokenEnd);
 					
 					std::string path = "assets/models/" + subDir + tmpPath;
@@ -145,7 +144,7 @@ namespace pathtracer {
 
 					cudaArray_t cuArr = 0;
 					current.matProperties.use_mapKe = genTexture_float(&current.matProperties.emissiveTexture, &cuArr, path);
-				}
+				 }
 			}
 			matList.push_back(current);
 

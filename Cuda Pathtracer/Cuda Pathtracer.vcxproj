@@ -139,6 +139,7 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="core\CUDA\pathtracer.cu" />
+    <CudaCompile Include="core\CUDA\utility\phase_function.cu" />
     <CudaCompile Include="core\CUDA\utility\envmap_cuda.cu" />
   </ItemGroup>
   <ItemGroup>

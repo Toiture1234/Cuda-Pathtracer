@@ -117,4 +117,7 @@ namespace pathtracer {
 	__device__ __host__ inline float3 log2_3(float3 x) {
 		return make_float3(log2f(x.x), log2f(x.y), log2f(x.z));
 	}
+	__device__ __host__ inline float3 exp3f(float3 x) {
+		return make_float3(expf(x.x), expf(x.y), expf(x.z));
+	}
 }

@@ -53,21 +53,7 @@ namespace pathtracer {
 		int x = (int)clamp(lower, 0, params.envMap_size.x - 1);
 		return make_float2((float)x / (float)params.envMap_size.x, (float)y / (float)params.envMap_size.y);
 
-		/*int lower = 0;
-		int upper = params.envMap_size.x * params.envMap_size.y - 1;
-		while (lower < upper) {
-			int mid = (lower + upper) >> 1;
-			if (xi < tex1Dfetch<float>(params.envMap_cdf, mid)) {
-				upper = mid;
-			}
-			else {
-				lower = mid + 1;
-			}
-		}
-		int idx = (int)clamp(lower, 0, params.envMap_size.x * params.envMap_size.y - 1);
-		int y = idx % params.envMap_size.y;
-		int x = idx - y / params.envMap_size.x;
-		return make_float2((float)x / (float)params.envMap_size.x, (float)y / (float)params.envMap_size.y);*/
+		
 	}
 
 	__device__ inline float4 sampleEnvMap(float3& color, kernelParams params, Rand_state& state) {

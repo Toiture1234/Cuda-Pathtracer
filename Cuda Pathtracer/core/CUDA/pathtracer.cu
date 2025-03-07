@@ -1,5 +1,6 @@
 #include "pathtracer.cuh" // very important first include for cuda to work
 #include "utility/envmap_cuda.cu"
+#include "utility/phase_function.cu"
 
 namespace pathtracer {
 	// constants
@@ -232,6 +233,35 @@ namespace pathtracer {
 		*/
 		return hit;
 	}
+	__device__ inline float3 visibility(Ray ray,
+		Triangle* cudaTriList,
+		int* cudaTriIndex,
+		BVH_Node* cudaNodes,
+		Material* cudaMats,
+		int3& debug,
+		Rand_state& state,
+		kernelParams params) 
+	{
+		float3 Light = make_float3(1.f, 1.f, 1.f);
+		bool inside = false;
+
+		for (int i = 0; i < 32; i++) {
+			Hit info = map(ray, debug, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
+
+			if (!info.hit) return Light;
+
+			bool refractive = (1.f - info.mat.metallic) * info.mat.specTrans > 0.f && fabsf(info.mat.ior - 1.f) <= 0.01f; // allows for volumes to not being black
+			bool alpha = randC(&state) > info.mat.alpha;
+
+			if (info.hit && !(refractive || alpha)) return make_float3(0.f, 0.f, 0.f);
+			else if(refractive) inside = !inside;
+
+			if (inside) {
+				Light *= exp3f(-info.t * (info.mat.medium.sigmaA));
+			}
+		}
+		return Light;
+	}
 	__device__ inline float3 sampleSkyboxOnBounce(Hit info,
 												Ray ray,
 												Triangle* cudaTriList,
@@ -241,8 +271,7 @@ namespace pathtracer {
 												int3& debug,
 												Rand_state& state,
 												kernelParams params,
-												bool& doSampleSky,
-												float uvX)
+												bool isSurface)
 	{
 		float3 L;
 		float L_pdf;
@@ -252,15 +281,17 @@ namespace pathtracer {
 		L = make_float3(dat.x, dat.y, dat.z);
 		L_pdf = dat.w;
 
-		Hit info0 = map(Ray(ray.o, L), debug, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
-		if (info0.hit) return make_float3(0.f, 0.f, 0.f); // in shadow
+		float3 trans = visibility(Ray(ray.o, L), cudaTriList, cudaTriIndex, cudaNodes, cudaMats, debug, state, params);
+		if (dot(trans, trans) <= 0.05f) return make_float3(0.f, 0.f, 0.f);
 
 		float bsdf_pdf;
-		float3 bsdfF = Disney::DisneyEval_2(info, -1.f * ray.d, info.normal, L, bsdf_pdf);
+		float3 bsdfF;
+		bsdfF = Disney::DisneyEval_2(info, -1.f * ray.d, info.normal, L, bsdf_pdf);
+
 		if (bsdf_pdf > 0.f) {
 			float misWeight = powerHeuristic(L_pdf, bsdf_pdf);
 			if (misWeight > 0.f) {
-				return misWeight * color * bsdfF / L_pdf;
+				return misWeight * color * bsdfF * trans / L_pdf;
 			}
 		}
 
@@ -326,7 +357,7 @@ namespace pathtracer {
 		bool sampleSky = true;
 		float x0 = ray.d.x;
 		float pdf;
-		for (int i = 0; i < 50; i++) {
+		for (int i = 0; i < 512; i++) {
 			info = map(ray, nullVal, cudaTriList, cudaTriIndex, cudaNodes, cudaMats);
 			info.isInside = inside;
 
@@ -340,41 +371,54 @@ namespace pathtracer {
 
 				if (misWeight > 0.f)
 					result += getN(misWeight * envMapCol * rayColor, channel);
-				
+				return;
 			}
 
-			ray.o += ray.d * info.t;
+			
 			info.mat.roughness = fmaxf(info.mat.roughness, 0.0001f);
 
 			bool mediumScatter = false;
 			if (info.isInside) { // medium interaction, scatter or absorb
-				float3 sigmaT = info.mat.medium.sigmaA + info.mat.medium.sigmaS;
+				/*float3 sigmaT = info.mat.medium.sigmaA + info.mat.medium.sigmaS;
 				float zeta = randC(&state);
 				if (zeta < getN(info.mat.medium.sigmaA / sigmaT, channel)) { // absorb event
-					rayColor *= exp(-getN(sigmaT * info.t, channel)); 
+					rayColor *= expf(-getN(sigmaT * info.t, channel)); 
 				}
 				else { // scatter event
-					float scatterDistance = -log(1.f - randC(&state)) / getN(sigmaT, channel);
+					float scatterDistance = -logf(1.f - randC(&state)) / getN(sigmaT, channel);
 					if (scatterDistance < info.t) {
 						mediumScatter = true;
 						ray.o += ray.d * scatterDistance;
-						ray.d = generateUniformSample(state);
+
+						sampleSky = false;
+
+						result += getN(sampleSkyboxOnBounce(info,
+							ray,
+							cudaTriList, cudaTriIndex, cudaNodes, cudaMats,
+							nullVal, state, params, false), channel) * rayColor;
+							
+						float3 mem = ray.d;
+						ray.d = sampleHG(Ray(ray.o, ray.d), info.mat.medium.G, state);
+						pdf = evalHG(dot(mem, ray.d), info.mat.medium.G);
+						
+						//ray.d = generateUniformSample(state);
 					}
-				}
-				
+				}*/
+				rayColor *= expf(-getN(info.mat.medium.sigmaA * info.t, channel));
 			}
 
 			if (!mediumScatter) {
+				ray.o += ray.d * info.t;
+
 				float rC = randC(&state);
 				if (rC < info.mat.alpha) {
-					
 					sampleSky = false;
 
 					result += getN(sampleSkyboxOnBounce(info,
-							Ray(ray.o + info.normal * 0.01f, ray.d),
-							cudaTriList, cudaTriIndex, cudaNodes, cudaMats,
-							nullVal, state, params, sampleSky,uvX), channel) * rayColor;
-					
+						Ray(ray.o + info.normal * 0.01f, ray.d),
+						cudaTriList, cudaTriIndex, cudaNodes, cudaMats,
+						nullVal, state, params, true), channel) * rayColor;
+						
 
 					float3 L;
 					float3 bsdf = Disney::DisneySample_2(info, ray.d * -1.f, info.normal, L, pdf, state, inside);

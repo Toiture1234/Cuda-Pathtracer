@@ -318,7 +318,7 @@ namespace pathtracer {
             }
 
             // Glass/Specular BSDF
-            if (glassPr > 0.0)
+            if (glassPr > 0.0 && fabsf(info.mat.ior - 1.f) > 0.01f)
             {
                 // Dielectric fresnel (achromatic)
                 float F = DielectricFresnel(VDotH, eta);
@@ -334,6 +334,7 @@ namespace pathtracer {
                     pdf += tmpPdf * glassPr * (1.0f - F);
                 }
             }
+               
 
             // Clearcoat
             if (clearCtPr > 0.0 && reflect)
@@ -416,6 +417,12 @@ namespace pathtracer {
             }
             else if (r3 < cdf[3]) // Glass
             {
+                if (fabsf(info.mat.ior - 1.f) <= 0.01f) {
+                    L = ToWorld(T, B, N, -1.f * V);
+                    pdf = 1.f;
+                    inside = !inside;
+                    return make_float3(1.f, 1.f, 1.f);
+                }
                 float3 H = SampleGGXVNDF(V, ax, ay, r1, r2);
                 float F = DielectricFresnel(abs(dot(V, H)), eta);
 
