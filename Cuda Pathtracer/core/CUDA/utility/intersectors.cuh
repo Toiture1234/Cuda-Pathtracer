@@ -17,23 +17,6 @@ namespace pathtracer {
 			return false; // no intersection
 		}
 	
-		// normal
-		/*float3 mask;
-		if (!inside) {
-			if (planesNear.x > planesNear.y && planesNear.x > planesNear.z) {
-				mask = make_float3(1, 0, 0);
-			}
-			else if (planesNear.y > planesNear.z) {
-				mask = make_float3(0, 1, 0);
-			}
-			else {
-				mask = make_float3(0, 0, 1);
-			}
-		}
-		else {
-			float3 point = ray.o + ray.d * tFar;
-		}*/
-
 		hit.t = inside ? tFar : tNear;
 		float3 point = ray.o + ray.d * hit.t;
 

@@ -1,3 +1,21 @@
+/*Copyright © 2025 Toiture1234
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ * and associated documentation files (the “Software”), to deal in the Software without restriction,
+ * including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
+ * THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 #pragma once
 
 namespace pathtracer {
@@ -6,76 +24,14 @@ namespace pathtracer {
 		float3 o, d;
 		// constructors
 		__device__ inline Ray() {
-			o = make_float3(0.f, 0.f, 0.f);
-			d = make_float3(0.f, 0.f, 0.f);
+			o = F3_0;
+			d = F3_0;
 		}
 		__device__ inline Ray(float3 O, float3 D) {
 			o = O; d = D;
 		}
 		__device__ ~Ray() {}
 	};
-	/*struct Material {
-		// old one
-		float3 albedo = make_float3(0., 0., 0.), specularAlbedo = make_float3(0., 0., 0.), absorbtion = make_float3(0., 0., 0.);
-		float refractionProba = 0., smoothness = 1., f0 = 0., f90 = 0.;
-		float3 emissive = make_float3(0., 0., 0.);
-		bool specularPossible = false;
-		float n = 1., IOR = 1.;
-		// constructors
-		__device__ Material() {}
-		__device__ Material(float3 a, float3 sA, float3 ab, bool specPossible, float rP) {
-			albedo = a; specularAlbedo = sA; absorbtion = ab; refractionProba = rP; specularPossible = specPossible;
-		}
-		__device__ Material(float3 a, float3 sA, float3 ab, bool specPossible, float rP, float sm, float f_0, float f_90, float N) {
-			albedo = a; specularAlbedo = sA; absorbtion = ab; specularPossible = specPossible; refractionProba = rP; smoothness = sm; f0 = f_0; f90 = f_90; n = N; IOR = N;
-		}
-		__device__ void setEmissive(float3 e) {
-			emissive = e;
-		}
-
-		// diffuse part
-		float3 albedo;// = make_float3(0., 0., 0.);
-
-		// specular part
-		float3 specularAlbedo;// = make_float3(0., 0., 0.);
-		float f0;// = 0.;
-		float f90;// = 0.;
-		float specularSmoothness;// = 0.;
-
-		// refraction part
-		float3 absorption;// = make_float3(0., 0., 0.);
-		float refractionProba;// = 0.;
-		float refrationSmoothness;// = 0.;
-
-		float3 emissive;// = make_float3(0., 0., 0.);
-		float3 IOR;// = 1.;
-		//float3 n;// = 1.;
-		
-		__device__ __host__ inline Material() {
-			albedo = make_float3(0.f, 0.f, 0.f);
-			specularAlbedo = make_float3(0.f, 0.f, 0.f);
-			f0 = 0.f, f90 = 0.f;
-			specularSmoothness = 0.f;
-			absorption = make_float3(0.f, 0.f, 0.f);
-			refractionProba = 0.f, refrationSmoothness = 0.f;
-			emissive = make_float3(0.f, 0.f, 0.f);
-			IOR = make_float3(0.f, 0.f, 0.f);
-		}
-		__device__ __host__ inline Material(float3 a, float3 sA, float f_0, float f_90, float sR, float3 ab, float rP, float rR, float3 e, float3 ior) {
-			albedo = a;
-			specularAlbedo = sA;
-			f0 = f_0;
-			f90 = f_90;
-			specularSmoothness = sR;
-			absorption = ab;
-			refractionProba = rP;
-			refrationSmoothness = rR;
-			emissive = e;
-			IOR = ior;
-			//n = ior;
-		}
-		__device__ __host__ ~Material() {}
-	};*/
 
 	struct Medium {
 		float G;
@@ -83,7 +39,7 @@ namespace pathtracer {
 		float3 sigmaS; // actually useless
 		__device__ __host__ inline Medium() {
 			G = 0.f;
-			sigmaA = sigmaS = make_float3(0.f, 0.f, 0.f);
+			sigmaA = sigmaS = F3_0;
 		}
 	};
 	struct Material {
@@ -117,8 +73,8 @@ namespace pathtracer {
 		bool use_mapNor;
 
 		__device__ __host__ inline Material() {
-			baseColor = make_float3(0.f, 0.f, 0.f);
-			emissive = make_float3(0.f, 0.f, 0.f);
+			baseColor = F3_0;
+			emissive = F3_0;
 			medium = Medium();
 			roughness = 0.01f;
 			anisotropic = 0.f;
